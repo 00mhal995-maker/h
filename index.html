@@ -153,9 +153,9 @@
 
         // البيانات الافتراضية للدروس (مرتبطة بـ courseId)
         const defaultLessons = [
-            { id: 1001, courseId: 1701, title: 'مقدمة في أساسيات اللغة', type: 'video', contentUrl: 'https://www.youtube.com/embed/Q43Yd107SgM', duration: '12:00' },
-            { id: 1002, courseId: 1701, title: 'أصوات الحروف المتحركة', type: 'video', contentUrl: 'https://www.youtube.com/embed/5F2oD8m88eI', duration: '8:30' },
-            { id: 1003, courseId: 1702, title: 'قواعد صياغة الجملة الثانوية', type: 'video', contentUrl: 'https://www.youtube.com/embed/tgbNymZ7vqY', duration: '20:00' }
+            { id: 1001, courseId: 1701, title: 'مقدمة في أساسيات اللغة', type: 'video', contentUrl: 'https://www.youtube.com/embed/Q43Yd107SgM', duration: '12:00', thumbnailUrl: 'https://placehold.co/150x80/2563EB/ffffff?text=Lesson+1' },
+            { id: 1002, courseId: 1701, title: 'أصوات الحروف المتحركة', type: 'video', contentUrl: 'https://www.youtube.com/embed/5F2oD8m88eI', duration: '8:30', thumbnailUrl: 'https://placehold.co/150x80/10B981/ffffff?text=Lesson+2' },
+            { id: 1003, courseId: 1702, title: 'قواعد صياغة الجملة الثانوية', type: 'video', contentUrl: 'https://www.youtube.com/embed/tgbNymZ7vqY', duration: '20:00', thumbnailUrl: 'https://placehold.co/150x80/EF4444/ffffff?text=Lesson+3' }
         ];
 
         const demoLessons = [
@@ -218,7 +218,7 @@
         }
 
         // دالة لإضافة درس جديد (جديد)
-        function addNewLesson(courseId, title, url) {
+        function addNewLesson(courseId, title, url, thumbnailUrl) {
             const lessons = getLessons();
             // نمط للتحقق من رابط YouTube واستخراج الـ ID (يعمل مع watch و youtu.be)
             const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
@@ -238,11 +238,11 @@
                 title: title,
                 type: 'video',
                 contentUrl: `https://www.youtube.com/embed/${embedId}`,
-                duration: 'غير محدد' 
+                duration: 'غير محدد',
+                thumbnailUrl: thumbnailUrl // تخزين الصورة المصغرة
             };
             lessons.push(newLesson);
             saveLessons(lessons);
-            alert('تم إضافة الدرس بنجاح!');
             return true;
         }
 
@@ -487,6 +487,9 @@
 
             const lessonsListHtml = lessons.map(l => `
                 <tr class="hover:bg-gray-50">
+                    <td class="p-2 w-20">
+                        <img src="${l.thumbnailUrl}" onerror="this.onerror=null; this.src='https://placehold.co/100x50/cccccc/000000?text=No+Image'" class="w-full h-auto object-cover rounded shadow-sm" alt="Thumbnail">
+                    </td>
                     <td class="p-4 font-semibold text-gray-800">${l.title}</td>
                     <td class="p-4 hidden md:table-cell text-sm text-gray-500">${l.duration}</td>
                     <td class="p-4 hidden md:table-cell text-sm text-gray-500"><a href="${l.contentUrl}" target="_blank" class="text-blue-500 hover:underline">مشاهدة الرابط</a></td>
@@ -507,15 +510,19 @@
                 <!-- نموذج إضافة درس -->
                 <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
                     <h3 class="font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="plus-circle" class="w-5 h-5 ml-2"></i> إضافة درس جديد (فيديو يوتيوب)</h3>
-                    <form onsubmit="handleLessonSubmit(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <form onsubmit="handleLessonSubmit(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <input type="hidden" id="new-lesson-course-id" value="${courseId}">
-                        <div class="md:col-span-1">
+                        <div>
                             <label class="block text-sm text-gray-600 mb-1">عنوان الدرس</label>
                             <input type="text" id="new-lesson-title" required placeholder="مثال: زمن المضارع البسيط">
                         </div>
-                        <div class="md:col-span-1">
+                        <div>
                             <label class="block text-sm text-gray-600 mb-1">رابط فيديو YouTube</label>
                             <input type="url" id="new-lesson-url" required placeholder="https://www.youtube.com/watch?v=...">
+                        </div>
+                        <div> 
+                            <label class="block text-sm text-gray-600 mb-1">رابط الصورة المصغرة (Thumbnail)</label>
+                            <input type="url" id="new-lesson-thumbnail-url" required placeholder="https://placehold.co/200x100">
                         </div>
                         <div class="flex items-end">
                             <button type="submit" class="w-full bg-emerald-600 text-white py-2 px-4 rounded hover:bg-emerald-700 transition">إضافة الدرس</button>
@@ -529,6 +536,7 @@
                     <table class="w-full text-right">
                         <thead class="bg-gray-100 text-gray-600 text-sm">
                             <tr>
+                                <th class="p-4">الصورة</th>
                                 <th class="p-4">عنوان الدرس</th>
                                 <th class="p-4 hidden md:table-cell">المدة</th>
                                 <th class="p-4 hidden md:table-cell">الرابط</th>
@@ -565,11 +573,13 @@
             const courseId = document.getElementById('new-lesson-course-id').value;
             const title = document.getElementById('new-lesson-title').value;
             const url = document.getElementById('new-lesson-url').value;
+            const thumbnailUrl = document.getElementById('new-lesson-thumbnail-url').value; // جلب رابط الصورة المصغرة
             
-            if (addNewLesson(courseId, title, url)) {
+            if (addNewLesson(courseId, title, url, thumbnailUrl)) { // تمرير رابط الصورة المصغرة
                 // تفريغ الحقول عند النجاح وإعادة رسم القائمة
                 document.getElementById('new-lesson-title').value = '';
                 document.getElementById('new-lesson-url').value = '';
+                document.getElementById('new-lesson-thumbnail-url').value = ''; // تفريغ حقل الصورة
                 renderAdminLessons(parseInt(courseId)); 
             }
         }

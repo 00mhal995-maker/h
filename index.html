@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أكاديمية المنتشري للغة الإنجليزية | منصة LMS متكاملة</title>
+    <!-- تحميل Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- تحميل أيقونات Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* تحميل خط القاهرة (Cairo) لجمالية النص العربي */
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f8fafc; /* Tailwind: bg-slate-50 */
+        }
+        /* إخفاء الأقسام غير النشطة */
+        .page-section {
+            display: none;
+        }
+        /* الشريط الجانبي في لوحة التحكم يظل ثابتاً على الأجهزة الكبيرة */
+        @media (min-width: 1024px) {
+            #admin-sidebar {
+                height: fit-content;
+            }
+        }
+        /* لتطبيق خاصية RTL على flex/grid elements */
+        .space-x-reverse > * + * {
+            margin-left: 1rem;
+            margin-right: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================== -->
+    <!-- شريط التنقل العلوي (Navbar) -->
+    <!-- ============================================== -->
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm shadow-md border-b">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+            <!-- Logo/Brand -->
+            <div class="text-xl font-bold text-blue-800 flex items-center">
+                <i data-lucide="book-open" class="w-6 h-6 ml-2"></i>
+                أكاديمية المنتشري
+            </div>
+
+            <!-- Desktop Links -->
+            <div class="hidden md:flex space-x-2 space-x-reverse" id="desktop-links">
+                <!-- الروابط يتم إنشاؤها عبر JavaScript -->
+            </div>
+
+            <!-- Mobile Menu Button -->
+            <div class="md:hidden">
+                <button onclick="toggleMobileMenu()" class="text-gray-700 hover:text-blue-600 p-2 rounded-full transition-colors" id="mobile-menu-btn">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu Dropdown -->
+        <div class="md:hidden border-t bg-white shadow-lg hidden" id="mobile-menu-dropdown">
+            <div class="flex flex-col p-4 space-y-2" id="mobile-links">
+                <!-- الروابط يتم إنشاؤها عبر JavaScript -->
+            </div>
+            <div class="pt-2 p-4 border-t">
+                <a href="#" class="w-full inline-block text-center py-2 px-4 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+                    تسجيل الدخول
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ============================================== -->
+    <!-- المساحة الرئيسية للمحتوى -->
+    <!-- ============================================== -->
+    <main class="flex-grow pt-16">
+        
+        <!-- قسم 1: الصفحة الرئيسية (Home) -->
+        <section id="home" class="page-section active">
+            
+            <!-- Hero Section -->
+            <header class="pt-16 pb-16 md:pt-24 md:pb-24 bg-gradient-to-br from-blue-50 to-indigo-100 text-right">
+                <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex flex-col md:flex-row items-center">
+                        <!-- Text Content (Right) -->
+                        <div class="md:w-3/5 lg:w-1/2 mb-10 md:mb-0">
+                            <h1 class="text-4xl md:text-6xl font-extrabold text-blue-900 leading-tight">
+                                أكاديمية المنتشري للغة الإنجليزية
+                            </h1>
+                            <p class="mt-4 text-xl md:text-2xl text-gray-600 max-w-lg">
+                                منصة متكاملة لإدارة التعلم الاحترافي (LMS) - تجربة تعليمية فريدة.
+                            </p>
+                            <div class="mt-8 flex justify-start space-x-4 space-x-reverse">
+                                <button onclick="navigate('courses')" class="bg-blue-600 text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-105">
+                                    استكشف الدورات
+                                </button>
+                                <button onclick="navigate('placement')" class="bg-white text-blue-600 font-semibold border-2 border-blue-600 py-3 px-8 rounded-full shadow-md hover:bg-blue-50 transition-colors">
+                                    اختبار تحديد المستوى
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Image Placeholder (Left) -->
+                        <div class="md:w-2/5 lg:w-1/2 flex justify-center md:justify-end">
+                            <div class="w-64 h-64 md:w-80 md:h-80 bg-blue-200 rounded-full flex items-center justify-center shadow-2xl shadow-blue-400/50 relative overflow-hidden">
+                                <div class="absolute inset-0 bg-cover bg-center opacity-80" style="background-image: url('https://placehold.co/800x800/2563EB/ffffff?text=صورة+المعلم+المحترف')" aria-label="صورة المعلم محمد المنتشري"></div>
+                                <span class="relative text-lg font-bold text-white z-10 p-2 bg-blue-800/70 rounded-lg">المعلم محمد المنتشري</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Curriculums Section (Main Page) -->
+            <section id="home-curriculums" class="py-16 bg-gray-50 text-right">
+                <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-4">نظام المناهج المتعدد</h2>
+                    <p class="text-xl text-gray-600 mb-12 max-w-3xl">اختر المسار التعليمي الذي يناسب أهدافك، لدينا مسارات متخصصة للمبتدئين والطلاب المتقدمين.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="home-curriculums-cards">
+                        <!-- البطاقات يتم إنشاؤها عبر JavaScript -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- How It Works Section -->
+            <section id="how-it-works" class="py-16 bg-white text-right">
+                <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-10 text-center">كيف يعمل نظام الأكاديمية؟</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                        <div class="flex flex-col items-center text-center p-6 rounded-xl bg-blue-50 shadow-md">
+                            <span class="text-4xl font-extrabold text-blue-600 mb-3">1</span>
+                            <i data-lucide="clipboard" class="w-10 h-10 text-blue-600 mb-4"></i>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">اختبار تحديد المستوى</h3>
+                            <p class="text-gray-600 text-sm">ابدأ بتحديد مستواك الحالي بدقة عبر اختبار Placement Test الشامل.</p>
+                        </div>
+                        <div class="flex flex-col items-center text-center p-6 rounded-xl bg-emerald-50 shadow-md">
+                            <span class="text-4xl font-extrabold text-emerald-600 mb-3">2</span>
+                            <i data-lucide="list" class="w-10 h-10 text-emerald-600 mb-4"></i>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">اختر المنهج المناسب</h3>
+                            <p class="text-gray-600 text-sm">سيتم توجيهك للمنهج الأمثل (تأسيس، ثانوي، STEP) بناءً على نتيجتك.</p>
+                        </div>
+                        <div class="flex flex-col items-center text-center p-6 rounded-xl bg-indigo-50 shadow-md">
+                            <span class="text-4xl font-extrabold text-indigo-600 mb-3">3</span>
+                            <i data-lucide="video" class="w-10 h-10 text-indigo-600 mb-4"></i>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">تعلم المحتوى التفاعلي</h3>
+                            <p class="text-gray-600 text-sm">استمتع بالدروس المرئية والنصوص والملفات والاختبارات القصيرة لكل وحدة.</p>
+                        </div>
+                        <div class="flex flex-col items-center text-center p-6 rounded-xl bg-red-50 shadow-md">
+                            <span class="text-4xl font-extrabold text-red-600 mb-3">4</span>
+                            <i data-lucide="award" class="w-10 h-10 text-red-600 mb-4"></i>
+                            <h3 class="text-lg font-bold text-gray-800 mb-2">احصل على الشهادة الرقمية</h3>
+                            <p class="text-gray-600 text-sm">بعد إتمام الدورة بنجاح، تُمنح شهادة رقمية موثقة بتقنية Blockchain.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Testimonials Section -->
+            <section id="testimonials" class="py-16 bg-indigo-50 text-right">
+                <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <h2 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-10 text-center">آراء وشهادات طلابنا</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <!-- Card 1 -->
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600 text-right">
+                            <div class="flex mb-3 justify-end">
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                            </div>
+                            <p class="text-gray-700 italic mb-4">"منصة احترافية بكل المقاييس. ساعدتني دورة STEP على تحقيق الدرجة التي كنت أتمناها. الشرح مبسط والتدريبات مكثفة."</p>
+                            <p class="text-sm font-bold text-blue-700 border-t pt-3">أحمد محمد</p>
+                        </div>
+                        <!-- Card 2 -->
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600 text-right">
+                            <div class="flex mb-3 justify-end">
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 text-gray-300"></i>
+                            </div>
+                            <p class="text-gray-700 italic mb-4">"أفضل طريقة لتأسيس اللغة الإنجليزية، الدروس منظمة جداً وخطوة بخطوة. أشكر المعلم على جهده المميز."</p>
+                            <p class="text-sm font-bold text-blue-700 border-t pt-3">فاطمة الزهراء</p>
+                        </div>
+                        <!-- Card 3 -->
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-600 text-right">
+                            <div class="flex mb-3 justify-end">
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                                <i data-lucide="star" class="w-5 h-5 fill-yellow-400 text-yellow-400"></i>
+                            </div>
+                            <p class="text-gray-700 italic mb-4">"لوحة التحكم سهلة وواضحة، وتمكنت من متابعة تقدمي ودرجاتي بسهولة. نظام الإشعارات ممتاز للتذكير بالواجبات."</p>
+                            <p class="text-sm font-bold text-blue-700 border-t pt-3">خالد السالم</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </section>
+
+        <!-- قسم 2: الدورات والدروس التجريبية (Courses) -->
+        <section id="courses" class="page-section pt-24 pb-16 bg-gray-50 text-right min-h-screen">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <h1 class="text-4xl font-extrabold text-blue-900 mb-2">الدورات والبرامج الأكاديمية</h1>
+                <p class="text-xl text-gray-600 mb-10">استكشف مساراتنا التعليمية وابدأ التعلم الآن بدرس تجريبي مجاني.</p>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- عمود الدروس التجريبية (Side Panel) -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white p-6 rounded-xl shadow-lg lg:sticky lg:top-24 border-t-4 border-emerald-500">
+                            <h2 class="text-2xl font-bold text-emerald-700 mb-5 flex items-center">
+                                <i data-lucide="play-circle" class="w-6 h-6 ml-2"></i>
+                                دروس تجريبية مجانية
+                            </h2>
+                            <p class="text-gray-600 text-sm mb-4">شاهد عينات من المحتوى الاحترافي قبل التسجيل.</p>
+                            <div id="demo-lessons-container">
+                                <!-- الدروس التجريبية يتم إنشاؤها عبر JavaScript -->
+                            </div>
+                            <button class="w-full mt-4 bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-md">
+                                التسجيل الآن للوصول الكامل
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- عمود المناهج الأساسية (Main Content) -->
+                    <div class="lg:col-span-2 space-y-8" id="courses-list-container">
+                        <!-- الدورات يتم إنشاؤها عبر JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم 3: اختبار تحديد المستوى (Placement) -->
+        <section id="placement" class="page-section py-24 bg-white text-right min-h-screen">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-col lg:flex-row-reverse items-center justify-between">
+                    <div class="lg:w-1/2 mb-10 lg:mb-0 lg:pr-10">
+                        <h2 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-4">اختبار تحديد المستوى الذكي</h2>
+                        <p class="text-xl text-gray-600 mb-6">قبل البدء، يجب أن نعرف مستوى لغتك. سيقوم الاختبار بتوجيهك للمنهج الأنسب لك لضمان أفضل تجربة تعلم.</p>
+
+                        <ul class="space-y-4 text-lg text-gray-700 list-none pr-0">
+                            <li class="flex items-start">
+                                <i data-lucide="clock" class="w-6 h-6 text-indigo-500 ml-3 mt-1 flex-shrink-0"></i>
+                                <span class='font-semibold'>تحديد دقيق للمستوى:</span> يغطي جميع المهارات الأساسية.
+                            </li>
+                            <li class="flex items-start">
+                                <i data-lucide="bar-chart" class="w-6 h-6 text-indigo-500 ml-3 mt-1 flex-shrink-0"></i>
+                                <span class='font-semibold'>توصية بالمنهج:</span> بعد الاختبار، تحصل على توصية فورية بالمسار الأكاديمي.
+                            </li>
+                            <li class="flex items-start">
+                                <i data-lucide="check-circle" class="w-6 h-6 text-indigo-500 ml-3 mt-1 flex-shrink-0"></i>
+                                <span class='font-semibold'>شهادة اجتياز:</span> تحصل على شهادة فورية إذا تجاوزت درجة النجاح.
+                            </li>
+                        </ul>
+
+                        <button class="mt-8 bg-indigo-600 text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:bg-indigo-700 transition-transform transform hover:scale-105">
+                            ابدأ الاختبار الآن (60 دقيقة)
+                        </button>
+                    </div>
+
+                    <!-- Placeholder for the test visualization/image -->
+                    <div class="lg:w-1/2 w-full flex justify-center">
+                        <div class="w-full max-w-md h-72 bg-indigo-100 rounded-xl shadow-xl p-6 flex items-center justify-center border-4 border-indigo-200">
+                            <span class="text-indigo-700 text-xl font-bold">نموذج أسئلة الاختبار التفاعلي</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم 4: لوحة التحكم الإدارية (Admin) -->
+        <section id="admin" class="page-section pt-24 pb-16 bg-gray-50 text-right min-h-screen">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <h1 class="text-4xl font-extrabold text-blue-900 mb-8">لوحة التحكم الإدارية الكاملة</h1>
+                <div class="flex flex-col lg:flex-row gap-8">
+                    
+                    <!-- القائمة الجانبية (Sidebar) -->
+                    <div class="w-full lg:w-64 bg-white p-4 rounded-xl shadow-lg lg:sticky lg:top-24 h-fit border border-gray-100" id="admin-sidebar">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">القائمة الجانبية</h3>
+                        <ul class="space-y-2" id="admin-tabs">
+                            <!-- التبويبات يتم إنشاؤها عبر JavaScript -->
+                        </ul>
+                    </div>
+                    
+                    <!-- المحتوى الرئيسي للوحة التحكم -->
+                    <div class="lg:flex-grow bg-white p-8 rounded-xl shadow-lg border border-gray-100" id="admin-main-content">
+                        <!-- محتوى التبويبات يتم تحميله عبر JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ============================================== -->
+    <!-- قسم التذييل (Footer) -->
+    <!-- ============================================== -->
+    <footer class="bg-gray-900 text-white py-10 text-right">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-start border-b border-gray-700 pb-6 mb-6">
+                <!-- Brand and Mission -->
+                <div class="mb-6 md:mb-0 md:w-1/3">
+                    <h3 class="text-2xl font-bold text-blue-400 mb-3">أكاديمية المنتشري للغة الإنجليزية</h3>
+                    <p class="text-gray-400 text-sm max-w-xs">
+                        منصة تعليمية متكاملة تهدف إلى رفع مستوى إتقان اللغة الإنجليزية بأحدث التقنيات.
+                    </p>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="flex space-x-12 space-x-reverse">
+                    <div>
+                        <h4 class="font-semibold text-gray-200 mb-3">روابط سريعة</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li><a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">عن الأكاديمية</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">نظام الشهادات الرقمية</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">سياسة الخصوصية</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-200 mb-3">تواصل معنا</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li><p class="text-gray-400">البريد: info@example.com</p></li>
+                            <li><p class="text-gray-400">الهاتف: 050xxxxxxx</p></li>
+                            <li><a href="#" class="text-gray-400 hover:text-blue-400 transition-colors">الدعم الفني</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Copyright -->
+            <div class="text-center text-sm text-gray-500">
+                جميع الحقوق محفوظة &copy; 2025 أكاديمية المنتشري للغة الإنجليزية.
+                <p class='mt-1'>تصميم وتطوير بواسطة فريق التطوير - نوفمبر 2025.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ============================================== -->
+    <!-- جافاسكريبت (لإدارة التنقل والمحتوى الديناميكي) -->
+    <!-- ============================================== -->
+    <script>
+        // دالة يتم استدعاؤها بعد تحميل الأيقونات والصفحة
+        document.addEventListener('DOMContentLoaded', () => {
+            // استبدال أيقونات Lucide (المحددة عبر data-lucide) بـ SVG
+            lucide.createIcons();
+            
+            // إنشاء الروابط في شريط التنقل
+            setupNavigation();
+            
+            // إنشاء المحتوى الديناميكي (بطاقات المناهج والدروس)
+            renderDynamicContent();
+            
+            // تهيئة لوحة التحكم الإدارية
+            setupAdminDashboard();
+
+            // إظهار الصفحة الرئيسية كقسم نشط افتراضياً
+            navigate('home');
+        });
+        
+        // ===================================
+        // بيانات التطبيق
+        // ===================================
+        const curriculumsData = [
+            { id: 'foundation', title: 'تأسيس اللغة الإنجليزية', description: 'بناء أساس قوي في اللغة الإنجليزية للمبتدئين والمتوسطين.', icon: 'book-open', target: 'مبتدئ - متوسط', features: ['قواعد اللغة الأساسية', 'المفردات اليومية', 'مهارات المحادثة'] },
+            { id: 'secondary', title: 'الصف الثالث الثانوي', description: 'إعداد شامل لطلاب الثانوية العامة لامتحانات اللغة الإنجليزية.', icon: 'users', target: 'طلاب الثانوية', features: ['منهج الثانوية الكامل', 'تدريبات على نماذج الامتحانات', 'استراتيجيات الإجابة'] },
+            { id: 'step', title: 'اختبار STEP', description: 'تحضير مكثف لاختبار STEP (Standardized Test of English Proficiency).', icon: 'award', target: 'متوسط - متقدم', features: ['فهم المقروء والمسموع', 'التراكيب والقواعد', 'تحليل الكتابة'] },
+        ];
+        
+        const demoLessons = [
+            { title: 'أساسيات المضارع البسيط', duration: '15 دقيقة', icon: 'video', color: 'bg-emerald-500' },
+            { title: 'أهم 50 كلمة يومية', duration: '10 دقائق', icon: 'book-open', color: 'bg-indigo-500' },
+            { title: 'جمل محادثة للمقابلات', duration: '20 دقيقة', icon: 'play-circle', color: 'bg-red-500' },
+        ];
+
+        const adminStats = [
+            { title: "إجمالي الطلاب", value: "1,450", icon: 'users', color: "bg-blue-500" },
+            { title: "الدورات المتاحة", value: "18", icon: 'book', color: "bg-emerald-500" },
+            { title: "التعليقات الجديدة", value: "45", icon: 'message-square', color: "bg-amber-500" },
+            { title: "مجتازو اختبار المستوى", value: "850", icon: 'check-circle', color: "bg-red-500" },
+        ];
+
+        let activeAdminTab = 'overview';
+
+        // ===================================
+        // وظائف التنقل (Routing)
+        // ===================================
+
+        const links = [
+            { name: "الرئيسية", id: "home" },
+            { name: "الدورات", id: "courses" },
+            { name: "اختبار المستوى", id: "placement" },
+            { name: "لوحة التحكم (تجريبي)", id: "admin" },
+        ];
+
+        function createLinkButton(link) {
+            return `
+                <button
+                    onclick="navigate('${link.id}')"
+                    data-section-id="${link.id}"
+                    class="px-4 py-2 rounded-full transition-colors text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                >
+                    ${link.name}
+                </button>
+            `;
+        }
+
+        function setupNavigation() {
+            const desktopLinksContainer = document.getElementById('desktop-links');
+            const mobileLinksContainer = document.getElementById('mobile-links');
+            
+            links.forEach(link => {
+                desktopLinksContainer.innerHTML += createLinkButton(link);
+                // للموبايل نستخدم عنصر button كامل لتعبئة العرض
+                mobileLinksContainer.innerHTML += `<div class="w-full">${createLinkButton(link)}</div>`;
+            });
+        }
+        
+        function navigate(sectionId) {
+            // إخفاء جميع الأقسام
+            document.querySelectorAll('.page-section').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // إظهار القسم المطلوب
+            const activeSection = document.getElementById(sectionId);
+            if (activeSection) {
+                activeSection.style.display = 'block';
+            }
+            
+            // تحديث حالة الأزرار في شريط التنقل
+            document.querySelectorAll('[data-section-id]').forEach(btn => {
+                if (btn.dataset.sectionId === sectionId) {
+                    btn.classList.add('bg-blue-600', 'text-white', 'shadow-lg');
+                    btn.classList.remove('text-gray-700', 'hover:bg-blue-50', 'hover:text-blue-600');
+                } else {
+                    btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg');
+                    btn.classList.add('text-gray-700', 'hover:bg-blue-50', 'hover:text-blue-600');
+                }
+            });
+
+            // إغلاق قائمة الموبايل والتمرير للأعلى
+            document.getElementById('mobile-menu-dropdown').classList.add('hidden');
+            window.scrollTo(0, 0);
+
+            // إذا كان القسم هو لوحة التحكم، قم بتحديث المحتوى
+            if (sectionId === 'admin') {
+                renderAdminContent(activeAdminTab);
+            }
+        }
+
+        function toggleMobileMenu() {
+            const dropdown = document.getElementById('mobile-menu-dropdown');
+            const icon = document.querySelector('#mobile-menu-btn > svg');
+            
+            if (dropdown.classList.contains('hidden')) {
+                dropdown.classList.remove('hidden');
+                icon.innerHTML = lucide.createIcons({'tag':'x', 'props':{'class':'w-6 h-6'}}).outerHTML; // تغيير الأيقونة إلى X
+            } else {
+                dropdown.classList.add('hidden');
+                icon.innerHTML = lucide.createIcons({'tag':'menu', 'props':{'class':'w-6 h-6'}}).outerHTML; // تغيير الأيقونة إلى Menu
+            }
+            lucide.createIcons();
+        }
+
+        // ===================================
+        // وظائف إنشاء المحتوى الديناميكي
+        // ===================================
+
+        function createCurriculumCard(c) {
+            const featuresHtml = c.features.map(f => `
+                <li class="flex items-start">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 ml-2 mt-1 flex-shrink-0"></i>
+                    ${f}
+                </li>
+            `).join('');
+            
+            return `
+                <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-100 flex flex-col items-start text-right transform hover:-translate-y-1">
+                    <div class="bg-blue-100 p-3 rounded-full mb-4 text-blue-600">
+                        <i data-lucide="${c.icon}" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-blue-800 mb-2">${c.title}</h3>
+                    <p class="text-gray-600 mb-4 flex-grow">${c.description}</p>
+                    <div class="mt-auto w-full">
+                        <p class="text-sm font-semibold text-gray-700 mb-2">المستوى المستهدف: <span class="text-blue-600">${c.target}</span></p>
+                        <ul class="space-y-1 text-sm text-gray-700 list-none pr-0">
+                            ${featuresHtml}
+                        </ul>
+                        <button onclick="navigate('courses')" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                            عرض التفاصيل والدروس
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createFullCourseCard(c) {
+             const featuresHtml = c.features.map(f => `
+                <li class="flex items-start text-sm">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 ml-2 mt-1 flex-shrink-0"></i>
+                    ${f}
+                </li>
+            `).join('');
+
+            return `
+                <div class="bg-white p-6 rounded-xl shadow-xl border border-gray-100">
+                    <div class="flex items-start mb-4">
+                        <i data-lucide="${c.icon}" class="w-8 h-8 text-blue-600 ml-4 flex-shrink-0"></i>
+                        <div>
+                            <h2 class="text-3xl font-extrabold text-blue-800">${c.title}</h2>
+                            <p class="text-gray-600 mt-1">${c.description}</p>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-200 pt-4">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-3">ماذا ستتعلم؟</h3>
+                        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-gray-700 list-none pr-0">
+                            ${featuresHtml}
+                        </ul>
+                    </div>
+                    <div class="mt-6 flex justify-between items-center border-t pt-4">
+                        <span class="text-lg font-bold text-blue-600">المستوى: ${c.target}</span>
+                        <button class="bg-blue-600 text-white py-2 px-6 rounded-full font-medium hover:bg-blue-700 transition-colors shadow-md">
+                            اشترك الآن
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function createDemoLessonCard(lesson) {
+            return `
+                <div class="bg-gray-50 p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between text-right mb-4 transition-transform hover:scale-[1.01] hover:bg-white">
+                    <div class="flex items-center">
+                        <div class="${lesson.color} p-2 rounded-lg text-white ml-4">
+                            <i data-lucide="${lesson.icon}" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-800">${lesson.title}</h4>
+                            <p class="text-sm text-gray-500 flex items-center mt-1">
+                                <i data-lucide="clock" class="w-4 h-4 ml-1"></i>
+                                ${lesson.duration}
+                            </p>
+                        </div>
+                    </div>
+                    <button class="bg-blue-600 text-white text-sm py-1 px-4 rounded-full hover:bg-blue-700 transition-colors shadow-lg">
+                        شاهد الدرس
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderDynamicContent() {
+            // 1. بطاقات المناهج في الصفحة الرئيسية
+            const homeCurriculumsContainer = document.getElementById('home-curriculums-cards');
+            if (homeCurriculumsContainer) {
+                homeCurriculumsContainer.innerHTML = curriculumsData.map(createCurriculumCard).join('');
+            }
+            
+            // 2. بطاقات الدورات في صفحة الدورات
+            const coursesListContainer = document.getElementById('courses-list-container');
+            if (coursesListContainer) {
+                coursesListContainer.innerHTML = curriculumsData.map(createFullCourseCard).join('');
+            }
+            
+            // 3. الدروس التجريبية في صفحة الدورات
+            const demoLessonsContainer = document.getElementById('demo-lessons-container');
+            if (demoLessonsContainer) {
+                demoLessonsContainer.innerHTML = demoLessons.map(createDemoLessonCard).join('');
+            }
+
+            // إعادة تحديث الأيقونات بعد إضافة المحتوى الجديد
+            lucide.createIcons();
+        }
+
+        // ===================================
+        // وظائف لوحة التحكم الإدارية
+        // ===================================
+        
+        const adminTabsData = [
+            { id: 'overview', name: 'نظرة عامة', icon: 'bar-chart' },
+            { id: 'courses', name: 'إدارة الدورات', icon: 'book' },
+            { id: 'users', name: 'إدارة المستخدمين', icon: 'users' },
+            { id: 'placement', name: 'اختبار المستوى', icon: 'clipboard' },
+            { id: 'notifications', name: 'الإشعارات والإنذارات', icon: 'bell' },
+        ];
+
+        function setupAdminDashboard() {
+            const tabsContainer = document.getElementById('admin-tabs');
+            
+            tabsContainer.innerHTML = adminTabsData.map(tab => `
+                <li>
+                    <button
+                        onclick="renderAdminContent('${tab.id}')"
+                        data-tab-id="${tab.id}"
+                        class="w-full flex items-center p-3 rounded-lg transition-colors text-right text-gray-600 hover:bg-gray-50"
+                    >
+                        <i data-lucide="${tab.icon}" class="w-5 h-5 ml-3"></i>
+                        ${tab.name}
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        function renderAdminContent(tabId) {
+            activeAdminTab = tabId;
+            const contentContainer = document.getElementById('admin-main-content');
+            let contentHtml = '';
+
+            // تحديث حالة التبويبات
+            document.querySelectorAll('[data-tab-id]').forEach(btn => {
+                if (btn.dataset.tabId === tabId) {
+                    btn.classList.add('bg-blue-100', 'text-blue-700', 'font-semibold');
+                    btn.classList.remove('text-gray-600', 'hover:bg-gray-50');
+                } else {
+                    btn.classList.remove('bg-blue-100', 'text-blue-700', 'font-semibold');
+                    btn.classList.add('text-gray-600', 'hover:bg-gray-50');
+                }
+            });
+
+            // عرض المحتوى بناءً على التبويب النشط
+            switch (tabId) {
+                case 'overview':
+                    contentHtml = renderAdminOverview();
+                    break;
+                case 'courses':
+                    contentHtml = renderAdminCourses();
+                    break;
+                case 'users':
+                    contentHtml = renderAdminUsers();
+                    break;
+                case 'placement':
+                    contentHtml = renderAdminPlacement();
+                    break;
+                case 'notifications':
+                    contentHtml = renderAdminNotifications();
+                    break;
+                default:
+                    contentHtml = '<h2>يرجى اختيار قسم من القائمة الجانبية</h2>';
+            }
+
+            contentContainer.innerHTML = contentHtml;
+            lucide.createIcons(); // إعادة تحديث الأيقونات
+        }
+
+        function renderAdminOverview() {
+            const statsHtml = adminStats.map(stat => `
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100 flex flex-col justify-between transition-transform transform hover:scale-[1.02] border-r-4 border-blue-400">
+                    <div class="flex items-center justify-end">
+                        <div class="${stat.color} p-2 rounded-full text-white bg-opacity-80">
+                            <i data-lucide="${stat.icon}" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    <div class='mt-3'>
+                        <p class="text-sm font-medium text-gray-500">${stat.title}</p>
+                        <p class="text-3xl font-extrabold text-gray-900 mt-1">${stat.value}</p>
+                    </div>
+                </div>
+            `).join('');
+            
+            return `
+                <div>
+                    <h2 class="text-3xl font-extrabold text-blue-900 mb-6">نظرة عامة على النظام</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">${statsHtml}</div>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">أداء المنصة الأسبوعي</h3>
+                    <div class='bg-gray-50 p-6 rounded-xl shadow-inner border border-gray-100 h-64 flex items-center justify-center'>
+                        <p class='text-gray-500 font-semibold'>[رسم بياني وهمي لتتبع التقدم - Progress Tracking]</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminCourses() {
+            const coursesListHtml = curriculumsData.map(c => `
+                <div class="p-4 bg-white rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between">
+                    <span class='font-bold text-gray-800 mb-2 sm:mb-0'>${c.title}</span>
+                    <div class='flex flex-wrap gap-2'>
+                        <button class='bg-indigo-500 text-white text-xs py-1 px-3 rounded-full hover:bg-indigo-600'>إدارة الدروس</button>
+                        <button class='bg-amber-500 text-white text-xs py-1 px-3 rounded-full hover:bg-amber-600'>تعديل</button>
+                        <button class='bg-red-500 text-white text-xs py-1 px-3 rounded-full hover:bg-red-600'>حذف</button>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div>
+                    <h2 class="text-3xl font-extrabold text-blue-900 mb-6">إدارة الدورات والدروس</h2>
+                    <p class="text-gray-700 mb-6">هنا يتم إضافة، تعديل، وحذف الدورات (المناهج) والدروس والاختبارات التابعة لها.</p>
+                    <div class="space-y-4">${coursesListHtml}</div>
+                    <button class='mt-6 bg-emerald-600 text-white py-2 px-6 rounded-full font-medium hover:bg-emerald-700'>
+                        + إضافة دورة جديدة
+                    </button>
+                </div>
+            `;
+        }
+        
+        function renderAdminUsers() {
+            const mockUsers = [
+                { name: 'أحمد محمد', role: 'طالب', status: 'مسجل (تأسيس)' },
+                { name: 'فاطمة الزهراء', role: 'طالب', status: 'مسجل (STEP)' },
+                { name: 'ماجد خالد', role: 'طالب', status: 'محظور (3 إنذارات)' },
+                { name: 'هند علي', role: 'طالب', status: 'مسجل (ثانوي)' },
+            ];
+
+            const usersListHtml = mockUsers.map(user => `
+                <li class='flex justify-between items-center text-gray-800 p-2 border-b last:border-b-0'>
+                    <span>${user.name}</span>
+                    <div class='flex flex-wrap gap-2'>
+                        <span class='text-emerald-600 text-xs py-1 px-2 rounded-full bg-emerald-50'>${user.status}</span>
+                        <button class='bg-blue-500 text-white text-xs py-1 px-3 rounded-full'>عرض الملف</button>
+                        <button class='bg-red-500 text-white text-xs py-1 px-3 rounded-full'>إنذار</button>
+                    </div>
+                </li>
+            `).join('');
+
+            return `
+                <div>
+                    <h2 class="text-3xl font-extrabold text-blue-900 mb-6">إدارة المستخدمين</h2>
+                    <p class="text-gray-700 mb-6">عرض بيانات الطلاب، الدورات المسجلين بها، ومتابعة سجل الإنذارات.</p>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                        <ul class="space-y-1">
+                            <li class='font-bold text-gray-600 flex justify-between border-b pb-2'><span>الاسم</span><span>الحالة/الإجراءات</span></li>
+                            ${usersListHtml}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminPlacement() {
+            return `
+                <div>
+                    <h2 class="text-3xl font-extrabold text-blue-900 mb-6">إعدادات اختبار تحديد المستوى</h2>
+                    <p class="text-gray-700 mb-6">تحكم في أنواع الأسئلة (المغلقة والمفتوحة) وإعدادات النجاح.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class='bg-white p-6 rounded-xl shadow-md border border-gray-100'>
+                            <h3 class='font-bold text-gray-800 mb-3'>إعدادات عامة</h3>
+                            <p class='text-sm text-gray-600'>المحاولات المسموحة: <span class='font-semibold text-blue-600'>2</span></p>
+                            <p class='text-sm text-gray-600'>الحد الأدنى للنجاح: <span class='font-semibold text-blue-600'>68%</span></p>
+                            <p class='text-sm text-gray-600'>مدة الاختبار: <span class='font-semibold text-blue-600'>60 دقيقة</span></p>
+                            <button class='mt-4 bg-amber-600 text-white text-sm py-2 px-4 rounded-full'>تعديل الإعدادات</button>
+                        </div>
+                        <div class='bg-white p-6 rounded-xl shadow-md border border-gray-100'>
+                            <h3 class='font-bold text-gray-800 mb-3'>إدارة الأسئلة</h3>
+                            <p class='text-sm text-gray-600'>عدد الأسئلة: <span class='font-semibold text-blue-600'>45 سؤال</span></p>
+                            <p class='text-sm text-gray-600'>أسئلة مفتوحة للتقييم اليدوي: <span class='font-semibold text-blue-600'>5 أسئلة</span></p>
+                            <button class='mt-4 bg-indigo-600 text-white text-sm py-2 px-4 rounded-full'>تعديل الأسئلة</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdminNotifications() {
+            return `
+                <div>
+                    <h2 class="text-3xl font-extrabold text-blue-900 mb-6">إدارة الإشعارات والإنذارات</h2>
+                    <p class="text-gray-700 mb-6">إرسال رسائل فورية للطلاب ومتابعة سجل الإنذارات لفرض الانضباط.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class='bg-white p-6 rounded-xl shadow-md border border-gray-100'>
+                            <h3 class='font-bold text-gray-800 mb-3'>إرسال إشعار جديد</h3>
+                            <div class='flex flex-wrap gap-2'>
+                                <button class='bg-blue-600 text-white text-sm py-2 px-4 rounded-full'>تذكير بدرس</button>
+                                <button class='bg-emerald-600 text-white text-sm py-2 px-4 rounded-full'>تهنئة بإنجاز</button>
+                                <button class='bg-amber-600 text-white text-sm py-2 px-4 rounded-full'>إعلان عرض</button>
+                            </div>
+                        </div>
+                        <div class='bg-white p-6 rounded-xl shadow-md border border-gray-100'>
+                            <h3 class='font-bold text-gray-800 mb-3'>سجل الإنذارات</h3>
+                            <p class='text-sm text-gray-600'>إجمالي الإنذارات النشطة: <span class='font-semibold text-red-600'>12</span></p>
+                            <p class='text-sm text-gray-600'>طالب محظور تلقائياً: <span class='font-semibold text-red-600'>1</span></p>
+                            <button class='mt-4 bg-red-600 text-white text-sm py-2 px-4 rounded-full'>إصدار إنذار جديد</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+
+</body>
+</html>

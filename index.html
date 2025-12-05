@@ -23,7 +23,7 @@
         input:focus, textarea:focus, select:focus {
             outline: none;
             border-color: #2563eb;
-            ring: 2px solid #bfdbfe;
+            box-shadow: 0 0 0 2px #bfdbfe;
         }
     </style>
 </head>
@@ -89,7 +89,6 @@
                         <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-emerald-500 sticky top-24">
                             <h2 class="text-2xl font-bold text-emerald-700 mb-4">دروس تجريبية</h2>
                             <div id="demo-lessons-container"></div> 
-                            <!-- ملاحظة: الدروس التجريبية ثابتة لهذا المثال -->
                         </div>
                     </div>
                     <div class="lg:col-span-2 space-y-6" id="courses-list-container">
@@ -145,11 +144,18 @@
         // 1. DATA MANAGEMENT (LocalStorage)
         // ==========================================
         
-        // البيانات الافتراضية (إذا لم يكن هناك شيء محفوظ)
+        // البيانات الافتراضية للدورات
         const defaultCourses = [
             { id: 1701, title: 'تأسيس اللغة الإنجليزية', description: 'دورة شاملة للمبتدئين من الصفر.', target: 'مبتدئ', icon: 'book-open' },
             { id: 1702, title: 'الصف الثالث الثانوي', description: 'مراجعة شاملة لمنهج الثانوية.', target: 'طلاب المدارس', icon: 'users' },
             { id: 1703, title: 'اختبار STEP', description: 'تدريب مكثف لاجتياز الاختبار.', target: 'متقدم', icon: 'award' }
+        ];
+
+        // البيانات الافتراضية للدروس (مرتبطة بـ courseId)
+        const defaultLessons = [
+            { id: 1001, courseId: 1701, title: 'مقدمة في أساسيات اللغة', type: 'video', contentUrl: 'https://www.youtube.com/embed/Q43Yd107SgM', duration: '12:00' },
+            { id: 1002, courseId: 1701, title: 'أصوات الحروف المتحركة', type: 'video', contentUrl: 'https://www.youtube.com/embed/5F2oD8m88eI', duration: '8:30' },
+            { id: 1003, courseId: 1702, title: 'قواعد صياغة الجملة الثانوية', type: 'video', contentUrl: 'https://www.youtube.com/embed/tgbNymZ7vqY', duration: '20:00' }
         ];
 
         const demoLessons = [
@@ -157,49 +163,105 @@
             { title: 'درس تجريبي 2: الضمائر', duration: '15 د' }
         ];
 
-        // دالة لجلب البيانات
+        // جلب وحفظ الدورات
         function getCourses() {
             const stored = localStorage.getItem('myAppCourses');
             return stored ? JSON.parse(stored) : defaultCourses;
         }
 
-        // دالة لحفظ البيانات
         function saveCourses(courses) {
             localStorage.setItem('myAppCourses', JSON.stringify(courses));
-            // تحديث العرض فوراً
             renderDynamicContent();
-            // إذا كنا في صفحة الأدمن، نحدث جدول الدورات
             if(activeAdminTab === 'courses') renderAdminCourses();
         }
 
+        // جلب وحفظ الدروس (جديد)
+        function getLessons() {
+            const stored = localStorage.getItem('myAppLessons');
+            return stored ? JSON.parse(stored) : defaultLessons;
+        }
+
+        function saveLessons(lessons) {
+            localStorage.setItem('myAppLessons', JSON.stringify(lessons));
+            // لا حاجة لـ renderAdminLessons هنا، يتم استدعاؤه بعد الإضافة/الحذف بنجاح
+        }
+        
         // دالة لإضافة دورة جديدة
         function addNewCourse(title, desc, target) {
             const courses = getCourses();
             const newCourse = {
-                id: Date.now(), // رقم فريد
+                id: Date.now(),
                 title: title,
                 description: desc,
                 target: target,
-                icon: 'book' // أيقونة افتراضية
+                icon: 'book'
             };
             courses.push(newCourse);
             saveCourses(courses);
             alert('تم إضافة الدورة بنجاح!');
         }
 
-        // دالة لحذف دورة
+        // دالة لحذف دورة (وحذف جميع دروسها المرتبطة)
         function deleteCourse(id) {
-            if(confirm('هل أنت متأكد من حذف هذه الدورة؟')) {
+            if(confirm('هل أنت متأكد من حذف هذه الدورة وكل دروسها؟')) {
                 const courses = getCourses();
+                const lessons = getLessons();
+                
+                // 1. حذف الدورة
                 const updatedCourses = courses.filter(c => c.id !== id);
                 saveCourses(updatedCourses);
+
+                // 2. حذف الدروس المرتبطة
+                const updatedLessons = lessons.filter(l => l.courseId !== id);
+                saveLessons(updatedLessons); 
+            }
+        }
+
+        // دالة لإضافة درس جديد (جديد)
+        function addNewLesson(courseId, title, url) {
+            const lessons = getLessons();
+            // نمط للتحقق من رابط YouTube واستخراج الـ ID (يعمل مع watch و youtu.be)
+            const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+            const match = url.match(urlPattern);
+            let embedId = '';
+
+            if (match && match[1]) {
+                embedId = match[1];
+            } else {
+                alert('الرابط غير صالح. يرجى إدخال رابط فيديو YouTube صحيح.');
+                return false;
+            }
+
+            const newLesson = {
+                id: Date.now(),
+                courseId: parseInt(courseId),
+                title: title,
+                type: 'video',
+                contentUrl: `https://www.youtube.com/embed/${embedId}`,
+                duration: 'غير محدد' 
+            };
+            lessons.push(newLesson);
+            saveLessons(lessons);
+            alert('تم إضافة الدرس بنجاح!');
+            return true;
+        }
+
+        // دالة لحذف درس (جديد)
+        function deleteLesson(lessonId, courseId) {
+            if(confirm('هل أنت متأكد من حذف هذا الدرس؟')) {
+                const lessons = getLessons();
+                const updatedLessons = lessons.filter(l => l.id !== lessonId);
+                saveLessons(updatedLessons);
+                // إعادة رسم واجهة الدروس
+                renderAdminLessons(courseId); 
             }
         }
 
         // استعادة البيانات الأصلية (زر الطوارئ)
         function resetSystemData() {
-            if(confirm('سيتم حذف جميع الدورات المضافة والعودة للوضع الافتراضي. هل توافق؟')) {
+            if(confirm('سيتم حذف جميع الدورات والدروس المضافة والعودة للوضع الافتراضي. هل توافق؟')) {
                 localStorage.removeItem('myAppCourses');
+                localStorage.removeItem('myAppLessons'); // <-- حذف دروس
                 location.reload();
             }
         }
@@ -305,10 +367,10 @@
         }
 
         // ==========================================
-        // 3. ADMIN LOGIC (إدارة الدورات)
+        // 3. ADMIN LOGIC (إدارة الدورات والدروس)
         // ==========================================
         
-        let activeAdminTab = 'courses'; // الافتراضي
+        let activeAdminTab = 'courses';
 
         function setupAdminDashboard() {
             const tabs = [
@@ -389,7 +451,7 @@
                             <tr>
                                 <th class="p-4">اسم الدورة</th>
                                 <th class="p-4 hidden md:table-cell">المستوى</th>
-                                <th class="p-4">إجراءات</th>
+                                <th class="p-4">إدارة المحتوى</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
@@ -398,7 +460,8 @@
                                     <td class="p-4 font-semibold text-gray-800">${c.title}</td>
                                     <td class="p-4 hidden md:table-cell text-sm text-gray-500">${c.target}</td>
                                     <td class="p-4">
-                                        <button onclick="deleteCourse(${c.id})" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف</button>
+                                        <button onclick="renderAdminLessons(${c.id})" class="text-indigo-500 hover:text-indigo-700 bg-indigo-50 px-3 py-1 rounded text-sm ml-2">إدارة الدروس (${getLessons().filter(l => l.courseId === c.id).length})</button>
+                                        <button onclick="deleteCourse(${c.id})" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف الدورة</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -410,7 +473,80 @@
             lucide.createIcons();
         }
 
-        // معالجة تقديم النموذج
+        // دالة واجهة إدارة الدروس (جديد)
+        function renderAdminLessons(courseId) {
+            const content = document.getElementById('admin-main-content');
+            const courses = getCourses();
+            const course = courses.find(c => c.id === courseId);
+            const lessons = getLessons().filter(l => l.courseId === courseId);
+
+            if (!course) {
+                content.innerHTML = `<div class="p-8 text-red-500">خطأ: لم يتم العثور على الدورة.</div>`;
+                return;
+            }
+
+            const lessonsListHtml = lessons.map(l => `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4 font-semibold text-gray-800">${l.title}</td>
+                    <td class="p-4 hidden md:table-cell text-sm text-gray-500">${l.duration}</td>
+                    <td class="p-4 hidden md:table-cell text-sm text-gray-500"><a href="${l.contentUrl}" target="_blank" class="text-blue-500 hover:underline">مشاهدة الرابط</a></td>
+                    <td class="p-4">
+                        <button onclick="deleteLesson(${l.id}, ${courseId})" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            content.innerHTML = `
+                <div class="mb-4 flex justify-between items-center border-b pb-4">
+                    <h2 class="text-2xl font-extrabold text-blue-900">إدارة دروس دورة: ${course.title}</h2>
+                    <button onclick="renderAdminCourses()" class="text-sm bg-gray-100 text-gray-600 px-3 py-1 rounded hover:bg-gray-200 flex items-center">
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i> العودة للدورات
+                    </button>
+                </div>
+
+                <!-- نموذج إضافة درس -->
+                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="plus-circle" class="w-5 h-5 ml-2"></i> إضافة درس جديد (فيديو يوتيوب)</h3>
+                    <form onsubmit="handleLessonSubmit(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <input type="hidden" id="new-lesson-course-id" value="${courseId}">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm text-gray-600 mb-1">عنوان الدرس</label>
+                            <input type="text" id="new-lesson-title" required placeholder="مثال: زمن المضارع البسيط">
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm text-gray-600 mb-1">رابط فيديو YouTube</label>
+                            <input type="url" id="new-lesson-url" required placeholder="https://www.youtube.com/watch?v=...">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full bg-emerald-600 text-white py-2 px-4 rounded hover:bg-emerald-700 transition">إضافة الدرس</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- قائمة الدروس الحالية -->
+                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <h3 class="font-bold text-lg p-4 bg-gray-50 border-b">قائمة الدروس (${lessons.length} درس)</h3>
+                    <table class="w-full text-right">
+                        <thead class="bg-gray-100 text-gray-600 text-sm">
+                            <tr>
+                                <th class="p-4">عنوان الدرس</th>
+                                <th class="p-4 hidden md:table-cell">المدة</th>
+                                <th class="p-4 hidden md:table-cell">الرابط</th>
+                                <th class="p-4">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            ${lessonsListHtml}
+                        </tbody>
+                    </table>
+                    ${lessons.length === 0 ? '<div class="p-8 text-center text-gray-500">لا توجد دروس مضافة لهذه الدورة بعد.</div>' : ''}
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+
+        // معالجة تقديم نموذج إضافة دورة
         function handleCourseSubmit(e) {
             e.preventDefault();
             const title = document.getElementById('new-course-title').value;
@@ -418,6 +554,24 @@
             const target = document.getElementById('new-course-target').value;
             
             addNewCourse(title, desc, target);
+            // تفريغ الحقول
+            document.getElementById('new-course-title').value = '';
+            document.getElementById('new-course-desc').value = '';
+        }
+        
+        // معالجة تقديم نموذج إضافة درس (جديد)
+        function handleLessonSubmit(e) {
+            e.preventDefault();
+            const courseId = document.getElementById('new-lesson-course-id').value;
+            const title = document.getElementById('new-lesson-title').value;
+            const url = document.getElementById('new-lesson-url').value;
+            
+            if (addNewLesson(courseId, title, url)) {
+                // تفريغ الحقول عند النجاح وإعادة رسم القائمة
+                document.getElementById('new-lesson-title').value = '';
+                document.getElementById('new-lesson-url').value = '';
+                renderAdminLessons(parseInt(courseId)); 
+            }
         }
 
     </script>

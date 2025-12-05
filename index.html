@@ -25,6 +25,29 @@
             border-color: #2563eb;
             box-shadow: 0 0 0 2px #bfdbfe;
         }
+        /* تصميم النافذة المنبثقة */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            display: none; /* مخفية افتراضياً */
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            max-width: 90%;
+            width: 400px;
+            text-align: right;
+            position: relative;
+        }
     </style>
 </head>
 <body>
@@ -59,7 +82,7 @@
                         <h1 class="text-4xl md:text-6xl font-extrabold text-blue-900 leading-tight">أكاديمية المنتشري</h1>
                         <p class="mt-4 text-xl text-gray-600">منصة متكاملة لإدارة التعلم الاحترافي.</p>
                         <div class="mt-8 flex space-x-4 space-x-reverse">
-                            <button onclick="navigate('courses')" class="bg-blue-600 text-white py-3 px-8 rounded-full shadow-lg hover:bg-blue-700">استكشف الدورات</button>
+                            <button onclick="checkAccessAndNavigate('courses')" class="bg-blue-600 text-white py-3 px-8 rounded-full shadow-lg hover:bg-blue-700">استكشف الدورات</button>
                             <button onclick="navigate('placement')" class="bg-white text-blue-600 border-2 border-blue-600 py-3 px-8 rounded-full">اختبار المستوى</button>
                         </div>
                     </div>
@@ -114,7 +137,7 @@
                 <div class="p-10 bg-indigo-50 rounded-xl border border-indigo-100 inline-block">
                     <i data-lucide="clipboard-list" class="w-16 h-16 text-indigo-500 mx-auto mb-4"></i>
                     <p>الاختبار متاح لمدة 60 دقيقة</p>
-                    <button class="mt-4 bg-indigo-600 text-white py-2 px-6 rounded-full">بدء الاختبار</button>
+                    <button onclick="handlePlacementTestComplete()" class="mt-4 bg-indigo-600 text-white py-2 px-6 rounded-full hover:bg-indigo-700">بدء الاختبار (إكمال)</button>
                 </div>
             </div>
         </section>
@@ -138,6 +161,44 @@
         </section>
 
     </main>
+
+    <!-- ============================================== -->
+    <!-- نافذة التسجيل/تسجيل الدخول المنبثقة (Modal) -->
+    <!-- ============================================== -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content">
+            <button onclick="closeAuthModal()" class="absolute top-3 left-3 text-gray-500 hover:text-gray-900 p-2 rounded-full">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <h3 class="text-2xl font-bold text-blue-800 mb-4 border-b pb-2">تسجيل الدخول / مستخدم جديد</h3>
+            <p id="auth-message" class="text-sm text-red-600 mb-4 hidden bg-red-50 p-3 rounded"></p>
+            
+            <form onsubmit="handleAuthSubmit(event)" id="auth-form" class="space-y-4">
+                <div>
+                    <label for="auth-name" class="block text-sm font-medium text-gray-700 mb-1">الاسم الكامل</label>
+                    <input type="text" id="auth-name" required placeholder="ادخل اسمك" class="w-full">
+                </div>
+                <div>
+                    <label for="auth-phone" class="block text-sm font-medium text-gray-700 mb-1">رقم الجوال</label>
+                    <input type="tel" id="auth-phone" required placeholder="مثال: 05xxxxxxx" class="w-full">
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-full hover:bg-blue-700 transition">
+                    تسجيل الدخول / متابعة
+                </button>
+            </form>
+
+            <div id="status-display" class="mt-4 p-4 bg-gray-50 rounded hidden">
+                <p class="text-sm font-medium text-gray-700 mb-2">الحالة الحالية:</p>
+                <p id="user-status-text" class="text-sm text-blue-600"></p>
+                <button onclick="navigate('placement'); closeAuthModal();" id="start-test-btn" class="mt-3 w-full bg-indigo-600 text-white py-2 rounded-full hover:bg-indigo-700 transition hidden">
+                    اذهب لاختبار تحديد المستوى
+                </button>
+            </div>
+
+        </div>
+    </div>
+
 
     <!-- Footer -->
     <footer class="bg-gray-900 text-white py-10 text-right mt-auto">
@@ -191,8 +252,140 @@
 
         function saveLessons(lessons) {
             localStorage.setItem('myAppLessons', JSON.stringify(lessons));
-            // لا حاجة لـ renderAdminLessons هنا، يتم استدعاؤه بعد الإضافة/الحذف بنجاح
         }
+        
+        // ==========================================
+        // 5. AUTHENTICATION & AUTHORIZATION (جديد)
+        // ==========================================
+
+        const AUTH_KEY = 'userAuthData';
+        const GUEST_DATA = { name: null, phone: null, isAuthenticated: false, isTestCompleted: false };
+
+        function getUserStatus() {
+            const stored = localStorage.getItem(AUTH_KEY);
+            return stored ? JSON.parse(stored) : GUEST_DATA;
+        }
+
+        function saveUserStatus(data) {
+            localStorage.setItem(AUTH_KEY, JSON.stringify(data));
+        }
+
+        function checkAccessAndNavigate(targetPage, courseId = null) {
+            const user = getUserStatus();
+            
+            if (!user.isAuthenticated) {
+                // المستخدم غير مسجل، يجب التسجيل أولاً
+                openAuthModal('register');
+                return;
+            }
+
+            if (!user.isTestCompleted && targetPage !== 'placement') {
+                // المستخدم مسجل لكن لم يكمل الاختبار
+                openAuthModal('test_required');
+                return;
+            }
+            
+            // المستخدم مسجل وأكمل الاختبار
+            if (targetPage === 'course-details' && courseId !== null) {
+                renderCourseDetails(courseId);
+            } else {
+                navigate(targetPage);
+            }
+        }
+
+        function openAuthModal(mode) {
+            const modal = document.getElementById('auth-modal');
+            const messageEl = document.getElementById('auth-message');
+            const form = document.getElementById('auth-form');
+            const statusDisplay = document.getElementById('status-display');
+            const userStatusText = document.getElementById('user-status-text');
+            const startTestBtn = document.getElementById('start-test-btn');
+            
+            const user = getUserStatus();
+
+            messageEl.classList.add('hidden');
+            form.classList.remove('hidden');
+            statusDisplay.classList.add('hidden');
+            startTestBtn.classList.add('hidden');
+            
+            if (mode === 'register') {
+                messageEl.textContent = 'الوصول للدورات يتطلب التسجيل أولاً.';
+                messageEl.classList.remove('hidden');
+            } else if (mode === 'test_required') {
+                form.classList.add('hidden');
+                statusDisplay.classList.remove('hidden');
+                userStatusText.innerHTML = `مرحباً ${user.name}. يرجى **إكمال اختبار تحديد المستوى** لفتح الدورات.`;
+                startTestBtn.classList.remove('hidden');
+            }
+            
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+        
+        function closeAuthModal() {
+            document.getElementById('auth-modal').style.display = 'none';
+        }
+
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('auth-name').value;
+            const phone = document.getElementById('auth-phone').value;
+            
+            // تحقق بسيط من الرقم (للتأكد من أنه رقمي)
+            if (!/^\d+$/.test(phone)) {
+                document.getElementById('auth-message').textContent = 'يرجى إدخال رقم جوال صحيح (أرقام فقط).';
+                document.getElementById('auth-message').classList.remove('hidden');
+                return;
+            }
+
+            // محاكاة تسجيل الدخول/التسجيل
+            const user = getUserStatus();
+            const newUser = {
+                name: name,
+                phone: phone,
+                isAuthenticated: true,
+                isTestCompleted: user.isTestCompleted // الحفاظ على حالة الاختبار إذا كان قد أُجري مسبقاً
+            };
+            saveUserStatus(newUser);
+            
+            closeAuthModal();
+            
+            if (!newUser.isTestCompleted) {
+                // توجيه المستخدم إلى صفحة الاختبار مباشرة
+                alert(`أهلاً ${name}! تم تسجيل دخولك بنجاح. الآن سيتم توجيهك إلى اختبار تحديد المستوى.`);
+                navigate('placement');
+            } else {
+                // المستخدم عاد وأكمل الاختبار، يمكنه الوصول للدورات
+                alert(`مرحباً بك ${name} مجدداً! يمكنك الآن تصفح الدورات.`);
+                navigate('courses');
+            }
+        }
+
+        // محاكاة إكمال الاختبار (عند الضغط على زر في صفحة الاختبار)
+        function handlePlacementTestComplete() {
+            const user = getUserStatus();
+            if (!user.isAuthenticated) {
+                 openAuthModal('register');
+                 return;
+            }
+
+            if (user.isTestCompleted) {
+                alert('لقد أكملت الاختبار مسبقاً!');
+                return;
+            }
+            
+            const updatedUser = { ...user, isTestCompleted: true };
+            saveUserStatus(updatedUser);
+            
+            alert(`تهانينا، ${user.name}! لقد أكملت اختبار تحديد المستوى بنجاح. يمكنك الآن الوصول إلى جميع الدورات.`);
+            navigate('courses');
+        }
+
+        // ==========================================
+        // 3. ADMIN LOGIC (إدارة الدورات والدروس)
+        // ==========================================
+        
+        // ... (بقية دوال إدارة الدورات والدروس لم تتغير)
         
         // دالة لإضافة دورة جديدة
         function addNewCourse(title, desc, target) {
@@ -267,9 +460,10 @@
 
         // استعادة البيانات الأصلية (زر الطوارئ)
         function resetSystemData() {
-            if(confirm('سيتم حذف جميع الدورات والدروس المضافة والعودة للوضع الافتراضي. هل توافق؟')) {
+            if(confirm('سيتم حذف جميع الدورات والدروس المضافة وبيانات المستخدم (التسجيل والاختبار) والعودة للوضع الافتراضي. هل توافق؟')) {
                 localStorage.removeItem('myAppCourses');
-                localStorage.removeItem('myAppLessons'); // <-- حذف دروس
+                localStorage.removeItem('myAppLessons'); 
+                localStorage.removeItem(AUTH_KEY); // حذف بيانات المستخدم
                 location.reload();
             }
         }
@@ -301,7 +495,7 @@
         // التنقل
         const links = [
             { name: "الرئيسية", id: "home" },
-            { name: "الدورات", id: "courses" },
+            { name: "الدورات", id: "courses", auth: true }, // يتطلب تصريح
             { name: "اختبار المستوى", id: "placement" },
             { name: "لوحة التحكم", id: "admin" },
         ];
@@ -310,7 +504,8 @@
             const desktop = document.getElementById('desktop-links');
             const mobile = document.getElementById('mobile-links');
             links.forEach(link => {
-                const btn = `<button onclick="navigate('${link.id}')" data-section="${link.id}" class="px-4 py-2 rounded-full text-sm font-medium text-gray-700 hover:text-blue-600 transition">${link.name}</button>`;
+                const action = link.auth ? `checkAccessAndNavigate('${link.id}')` : `Maps('${link.id}')`;
+                const btn = `<button onclick="${action}" data-section="${link.id}" class="px-4 py-2 rounded-full text-sm font-medium text-gray-700 hover:text-blue-600 transition">${link.name}</button>`;
                 desktop.innerHTML += btn;
                 mobile.innerHTML += `<div class="w-full text-center py-2">${btn}</div>`;
             });
@@ -330,7 +525,6 @@
             
             // تحديث محتوى لوحة التحكم أو تفاصيل الدورة عند الانتقال
             if(id === 'admin') renderAdminContent(activeAdminTab);
-            // إذا كان القسم هو تفاصيل الدورة، لا تفعل شيئاً (يتم استدعاء renderCourseDetails بشكل منفصل)
         }
 
         function toggleMobileMenu() {
@@ -369,7 +563,7 @@
                             <p class="text-gray-600 mb-4">${c.description}</p>
                             <span class="text-sm font-semibold text-blue-600">المستوى: ${c.target}</span>
                         </div>
-                        <button onclick="renderCourseDetails(${c.id})" class="mt-4 md:mt-0 bg-blue-600 text-white py-2 px-6 rounded hover:bg-blue-700">دخول الدورة</button>
+                        <button onclick="checkAccessAndNavigate('course-details', ${c.id})" class="mt-4 md:mt-0 bg-blue-600 text-white py-2 px-6 rounded hover:bg-blue-700">دخول الدورة</button>
                     </div>
                 `).join('');
             }
@@ -444,7 +638,7 @@
 
 
         // ==========================================
-        // 3. ADMIN LOGIC (إدارة الدورات والدروس)
+        // 5. ADMIN LOGIC (إدارة الدورات والدروس)
         // ==========================================
         
         let activeAdminTab = 'courses';

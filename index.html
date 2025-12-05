@@ -48,6 +48,20 @@
             text-align: right;
             position: relative;
         }
+        /* لتحديد إطار الفيديو بنسبة 16:9 */
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -121,13 +135,51 @@
             </div>
         </section>
 
-        <!-- COURSE DETAILS SECTION (جديد) -->
+        <!-- COURSE DETAILS SECTION -->
         <section id="course-details" class="page-section pt-24 pb-16 bg-white text-right min-h-screen">
             <!-- المحتوى يتم تحميله بواسطة JavaScript -->
             <div class="container mx-auto px-4" id="course-details-content">
                 <p class="text-center text-gray-500 py-20">يتم تحميل تفاصيل الدورة...</p>
             </div>
         </section>
+        
+        <!-- LESSON PLAYER SECTION (جديد) -->
+        <section id="lesson-player" class="page-section pt-24 pb-16 bg-gray-50 text-right min-h-screen">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- Main Content: Video Player -->
+                    <div class="lg:w-3/4">
+                        <div class="bg-white p-6 rounded-xl shadow-lg">
+                            <div id="lesson-video-player">
+                                <p class="text-center text-gray-500 py-10">يتم تحميل الفيديو...</p>
+                            </div>
+                            <h1 id="lesson-title-display" class="text-3xl font-extrabold text-blue-900 mt-4 mb-2"></h1>
+                            <p id="course-title-display" class="text-gray-600 mb-4 border-b pb-4"></p>
+                            
+                            <!-- Progress Tracking Button -->
+                            <div class="flex justify-between items-center mt-4">
+                                <button onclick="markLessonCompleted()" id="complete-lesson-btn" class="bg-emerald-600 text-white py-2 px-6 rounded-full font-medium hover:bg-emerald-700 transition flex items-center">
+                                    <i data-lucide="check-circle" class="w-5 h-5 ml-2"></i> 
+                                    <span>تأكيد إكمال الدرس</span>
+                                </button>
+                                <p id="lesson-complete-status" class="text-sm font-semibold text-gray-500"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sidebar: Lessons List -->
+                    <div class="lg:w-1/4">
+                        <div class="bg-white p-4 rounded-xl shadow-lg sticky lg:top-24">
+                            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">دروس الدورة</h2>
+                            <ul id="course-lessons-sidebar" class="space-y-2">
+                                <!-- الدروس يتم تحميلها هنا -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
 
         <!-- PLACEMENT TEST SECTION -->
         <section id="placement" class="page-section py-24 bg-white text-right">
@@ -226,7 +278,7 @@
             { id: 1002, courseId: 1701, title: 'أصوات الحروف المتحركة', type: 'video', contentUrl: 'https://www.youtube.com/embed/5F2oD8m88eI', duration: '8:30', thumbnailUrl: 'https://placehold.co/150x80/10B981/ffffff?text=Lesson+2' },
             { id: 1003, courseId: 1702, title: 'قواعد صياغة الجملة الثانوية', type: 'video', contentUrl: 'https://www.youtube.com/embed/tgbNymZ7vqY', duration: '20:00', thumbnailUrl: 'https://placehold.co/150x80/EF4444/ffffff?text=Lesson+3' }
         ];
-
+        
         const demoLessons = [
             { title: 'درس تجريبي 1: الحروف', duration: '10 د' },
             { title: 'درس تجريبي 2: الضمائر', duration: '15 د' }
@@ -244,7 +296,7 @@
             if(activeAdminTab === 'courses') renderAdminCourses();
         }
 
-        // جلب وحفظ الدروس (جديد)
+        // جلب وحفظ الدروس
         function getLessons() {
             const stored = localStorage.getItem('myAppLessons');
             return stored ? JSON.parse(stored) : defaultLessons;
@@ -253,139 +305,24 @@
         function saveLessons(lessons) {
             localStorage.setItem('myAppLessons', JSON.stringify(lessons));
         }
-        
-        // ==========================================
-        // 5. AUTHENTICATION & AUTHORIZATION (جديد)
-        // ==========================================
 
-        const AUTH_KEY = 'userAuthData';
-        const GUEST_DATA = { name: null, phone: null, isAuthenticated: false, isTestCompleted: false };
+        // جلب وحفظ الدروس المكتملة (جديد)
+        const COMPLETED_LESSONS_KEY = 'completedLessons';
 
-        function getUserStatus() {
-            const stored = localStorage.getItem(AUTH_KEY);
-            return stored ? JSON.parse(stored) : GUEST_DATA;
-        }
-
-        function saveUserStatus(data) {
-            localStorage.setItem(AUTH_KEY, JSON.stringify(data));
-        }
-
-        function checkAccessAndNavigate(targetPage, courseId = null) {
+        function getCompletedLessons() {
             const user = getUserStatus();
+            if (!user.isAuthenticated) return [];
             
-            if (!user.isAuthenticated) {
-                // المستخدم غير مسجل، يجب التسجيل أولاً
-                openAuthModal('register');
-                return;
-            }
-
-            if (!user.isTestCompleted && targetPage !== 'placement') {
-                // المستخدم مسجل لكن لم يكمل الاختبار
-                openAuthModal('test_required');
-                return;
-            }
-            
-            // المستخدم مسجل وأكمل الاختبار
-            if (targetPage === 'course-details' && courseId !== null) {
-                renderCourseDetails(courseId);
-            } else {
-                navigate(targetPage);
-            }
+            const stored = localStorage.getItem(`${COMPLETED_LESSONS_KEY}_${user.phone}`);
+            return stored ? JSON.parse(stored) : [];
         }
 
-        function openAuthModal(mode) {
-            const modal = document.getElementById('auth-modal');
-            const messageEl = document.getElementById('auth-message');
-            const form = document.getElementById('auth-form');
-            const statusDisplay = document.getElementById('status-display');
-            const userStatusText = document.getElementById('user-status-text');
-            const startTestBtn = document.getElementById('start-test-btn');
-            
+        function saveCompletedLessons(completedIds) {
             const user = getUserStatus();
-
-            messageEl.classList.add('hidden');
-            form.classList.remove('hidden');
-            statusDisplay.classList.add('hidden');
-            startTestBtn.classList.add('hidden');
-            
-            if (mode === 'register') {
-                messageEl.textContent = 'الوصول للدورات يتطلب التسجيل أولاً.';
-                messageEl.classList.remove('hidden');
-            } else if (mode === 'test_required') {
-                form.classList.add('hidden');
-                statusDisplay.classList.remove('hidden');
-                userStatusText.innerHTML = `مرحباً ${user.name}. يرجى **إكمال اختبار تحديد المستوى** لفتح الدورات.`;
-                startTestBtn.classList.remove('hidden');
-            }
-            
-            modal.style.display = 'flex';
-            lucide.createIcons();
-        }
-        
-        function closeAuthModal() {
-            document.getElementById('auth-modal').style.display = 'none';
-        }
-
-        function handleAuthSubmit(e) {
-            e.preventDefault();
-            const name = document.getElementById('auth-name').value;
-            const phone = document.getElementById('auth-phone').value;
-            
-            // تحقق بسيط من الرقم (للتأكد من أنه رقمي)
-            if (!/^\d+$/.test(phone)) {
-                document.getElementById('auth-message').textContent = 'يرجى إدخال رقم جوال صحيح (أرقام فقط).';
-                document.getElementById('auth-message').classList.remove('hidden');
-                return;
-            }
-
-            // محاكاة تسجيل الدخول/التسجيل
-            const user = getUserStatus();
-            const newUser = {
-                name: name,
-                phone: phone,
-                isAuthenticated: true,
-                isTestCompleted: user.isTestCompleted // الحفاظ على حالة الاختبار إذا كان قد أُجري مسبقاً
-            };
-            saveUserStatus(newUser);
-            
-            closeAuthModal();
-            
-            if (!newUser.isTestCompleted) {
-                // توجيه المستخدم إلى صفحة الاختبار مباشرة
-                alert(`أهلاً ${name}! تم تسجيل دخولك بنجاح. الآن سيتم توجيهك إلى اختبار تحديد المستوى.`);
-                navigate('placement');
-            } else {
-                // المستخدم عاد وأكمل الاختبار، يمكنه الوصول للدورات
-                alert(`مرحباً بك ${name} مجدداً! يمكنك الآن تصفح الدورات.`);
-                navigate('courses');
+            if (user.isAuthenticated) {
+                localStorage.setItem(`${COMPLETED_LESSONS_KEY}_${user.phone}`, JSON.stringify(completedIds));
             }
         }
-
-        // محاكاة إكمال الاختبار (عند الضغط على زر في صفحة الاختبار)
-        function handlePlacementTestComplete() {
-            const user = getUserStatus();
-            if (!user.isAuthenticated) {
-                 openAuthModal('register');
-                 return;
-            }
-
-            if (user.isTestCompleted) {
-                alert('لقد أكملت الاختبار مسبقاً!');
-                return;
-            }
-            
-            const updatedUser = { ...user, isTestCompleted: true };
-            saveUserStatus(updatedUser);
-            
-            alert(`تهانينا، ${user.name}! لقد أكملت اختبار تحديد المستوى بنجاح. يمكنك الآن الوصول إلى جميع الدورات.`);
-            navigate('courses');
-        }
-
-        // ==========================================
-        // 3. ADMIN LOGIC (إدارة الدورات والدروس)
-        // ==========================================
-        
-        // ... (بقية دوال إدارة الدورات والدروس لم تتغير)
         
         // دالة لإضافة دورة جديدة
         function addNewCourse(title, desc, target) {
@@ -453,6 +390,14 @@
                 const lessons = getLessons();
                 const updatedLessons = lessons.filter(l => l.id !== lessonId);
                 saveLessons(updatedLessons);
+
+                // إزالة من الدروس المكتملة لجميع المستخدمين (تبسيطاً)
+                const user = getUserStatus();
+                if (user.isAuthenticated) {
+                    const completed = getCompletedLessons().filter(id => id !== lessonId);
+                    saveCompletedLessons(completed);
+                }
+
                 // إعادة رسم واجهة الدروس
                 renderAdminLessons(courseId); 
             }
@@ -463,182 +408,246 @@
             if(confirm('سيتم حذف جميع الدورات والدروس المضافة وبيانات المستخدم (التسجيل والاختبار) والعودة للوضع الافتراضي. هل توافق؟')) {
                 localStorage.removeItem('myAppCourses');
                 localStorage.removeItem('myAppLessons'); 
-                localStorage.removeItem(AUTH_KEY); // حذف بيانات المستخدم
+                localStorage.clear(); // مسح LocalStorage بالكامل لتنظيف بيانات التتبع أيضاً
                 location.reload();
             }
         }
 
         // ==========================================
-        // 2. RENDERING (UI)
+        // 5. AUTHENTICATION & AUTHORIZATION 
         // ==========================================
 
-        document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-            setupNavigation();
-            renderDynamicContent();
-            setupAdminDashboard();
-            
-            // تحميل الدروس التجريبية
-            const demoContainer = document.getElementById('demo-lessons-container');
-            if(demoContainer) {
-                demoContainer.innerHTML = demoLessons.map(l => `
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded mb-2">
-                        <span class="text-sm font-bold text-gray-700">${l.title}</span>
-                        <span class="text-xs text-gray-500">${l.duration}</span>
-                    </div>
-                `).join('');
-            }
+        const AUTH_KEY = 'userAuthData';
+        const GUEST_DATA = { name: null, phone: null, isAuthenticated: false, isTestCompleted: false };
 
-            navigate('home');
-        });
-
-        // التنقل
-        const links = [
-            { name: "الرئيسية", id: "home" },
-            { name: "الدورات", id: "courses", auth: true }, // يتطلب تصريح
-            { name: "اختبار المستوى", id: "placement" },
-            { name: "لوحة التحكم", id: "admin" },
-        ];
-
-        function setupNavigation() {
-            const desktop = document.getElementById('desktop-links');
-            const mobile = document.getElementById('mobile-links');
-            links.forEach(link => {
-                const action = link.auth ? `checkAccessAndNavigate('${link.id}')` : `Maps('${link.id}')`;
-                const btn = `<button onclick="${action}" data-section="${link.id}" class="px-4 py-2 rounded-full text-sm font-medium text-gray-700 hover:text-blue-600 transition">${link.name}</button>`;
-                desktop.innerHTML += btn;
-                mobile.innerHTML += `<div class="w-full text-center py-2">${btn}</div>`;
-            });
+        function getUserStatus() {
+            const stored = localStorage.getItem(AUTH_KEY);
+            return stored ? JSON.parse(stored) : GUEST_DATA;
         }
 
-        function navigate(id) {
-            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            
-            document.querySelectorAll('[data-section]').forEach(b => {
-                if(b.dataset.section === id) b.classList.add('bg-blue-100', 'text-blue-700');
-                else b.classList.remove('bg-blue-100', 'text-blue-700');
-            });
-
-            document.getElementById('mobile-menu-dropdown').classList.add('hidden');
-            window.scrollTo(0,0);
-            
-            // تحديث محتوى لوحة التحكم أو تفاصيل الدورة عند الانتقال
-            if(id === 'admin') renderAdminContent(activeAdminTab);
+        function saveUserStatus(data) {
+            localStorage.setItem(AUTH_KEY, JSON.stringify(data));
         }
 
-        function toggleMobileMenu() {
-            document.getElementById('mobile-menu-dropdown').classList.toggle('hidden');
-        }
-
-        // عرض المحتوى الديناميكي (الصفحة الرئيسية + الدورات)
-        function renderDynamicContent() {
-            const courses = getCourses();
+        function checkAccessAndNavigate(targetPage, courseId = null, lessonId = null) {
+            const user = getUserStatus();
             
-            // 1. الصفحة الرئيسية
-            const homeContainer = document.getElementById('home-curriculums-cards');
-            if(homeContainer) {
-                homeContainer.innerHTML = courses.map(c => `
-                    <div class="bg-white p-6 rounded-xl shadow border border-gray-100 hover:-translate-y-1 transition">
-                        <div class="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center text-blue-600 mb-4">
-                            <i data-lucide="${c.icon}"></i>
-                        </div>
-                        <h3 class="text-xl font-bold text-blue-900 mb-2">${c.title}</h3>
-                        <p class="text-gray-600 text-sm mb-4">${c.description}</p>
-                        <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">${c.target}</span>
-                    </div>
-                `).join('');
-            }
-
-            // 2. صفحة الدورات
-            const listContainer = document.getElementById('courses-list-container');
-            if(listContainer) {
-                listContainer.innerHTML = courses.map(c => `
-                    <div class="bg-white p-6 rounded-xl shadow-md border flex flex-col md:flex-row justify-between items-start">
-                        <div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <i data-lucide="${c.icon}" class="text-blue-600"></i>
-                                <h3 class="text-2xl font-bold text-gray-800">${c.title}</h3>
-                            </div>
-                            <p class="text-gray-600 mb-4">${c.description}</p>
-                            <span class="text-sm font-semibold text-blue-600">المستوى: ${c.target}</span>
-                        </div>
-                        <button onclick="checkAccessAndNavigate('course-details', ${c.id})" class="mt-4 md:mt-0 bg-blue-600 text-white py-2 px-6 rounded hover:bg-blue-700">دخول الدورة</button>
-                    </div>
-                `).join('');
-            }
-            lucide.createIcons();
-        }
-
-        // ==========================================
-        // 4. STUDENT VIEW (صفحة تفاصيل الدورة) (جديد)
-        // ==========================================
-        
-        function renderCourseDetails(courseId) {
-            const course = getCourses().find(c => c.id === courseId);
-            const lessons = getLessons().filter(l => l.courseId === courseId);
-            const contentContainer = document.getElementById('course-details-content');
-
-            // 1. الانتقال إلى صفحة التفاصيل
-            navigate('course-details');
-            
-            if (!course) {
-                contentContainer.innerHTML = `<div class="p-8 text-center text-red-500">عفواً، لم يتم العثور على هذه الدورة.</div>`;
+            if (!user.isAuthenticated) {
+                openAuthModal('register');
                 return;
             }
 
-            // 2. بناء قائمة الدروس
-            const lessonsListHtml = lessons.map(l => `
-                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100 flex items-center mb-4 transition-transform hover:scale-[1.01]">
-                    <img src="${l.thumbnailUrl}" onerror="this.onerror=null; this.src='https://placehold.co/100x50/cccccc/000000?text=Video';" class="w-24 h-14 object-cover rounded ml-4 flex-shrink-0" alt="صورة الدرس">
-                    <div class="flex-grow">
-                        <h4 class="font-bold text-lg text-gray-800">${l.title}</h4>
-                        <p class="text-sm text-gray-500">فيديو: ${l.duration}</p>
-                    </div>
-                    <a href="${l.contentUrl}" target="_blank" class="bg-emerald-500 text-white px-4 py-2 rounded-full font-medium hover:bg-emerald-600 flex items-center ml-2">
-                        <i data-lucide="play" class="w-4 h-4 ml-1"></i> مشاهدة
-                    </a>
-                </div>
-            `).join('');
+            if (!user.isTestCompleted && targetPage !== 'placement') {
+                openAuthModal('test_required');
+                return;
+            }
+            
+            // المستخدم مسجل وأكمل الاختبار
+            if (targetPage === 'course-details' && courseId !== null) {
+                renderCourseDetails(courseId);
+            } else if (targetPage === 'lesson-player' && lessonId !== null && courseId !== null) {
+                renderLessonPlayer(courseId, lessonId);
+            } else {
+                navigate(targetPage);
+            }
+        }
 
-            // 3. بناء هيكل الصفحة
-            contentContainer.innerHTML = `
-                <button onclick="navigate('courses')" class="text-blue-600 hover:text-blue-800 mb-6 flex items-center">
-                    <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i> العودة لقائمة الدورات
-                </button>
-                <div class="bg-blue-50 p-8 rounded-xl shadow-lg mb-8 border-r-4 border-blue-600">
-                    <h1 class="text-4xl font-extrabold text-blue-900 mb-2">${course.title}</h1>
-                    <p class="text-xl text-gray-700">${course.description}</p>
-                    <span class="mt-4 inline-block bg-blue-200 text-blue-800 text-sm px-3 py-1 rounded-full">المستوى المستهدف: ${course.target}</span>
-                </div>
+        function openAuthModal(mode) {
+            const modal = document.getElementById('auth-modal');
+            const messageEl = document.getElementById('auth-message');
+            const form = document.getElementById('auth-form');
+            const statusDisplay = document.getElementById('status-display');
+            const userStatusText = document.getElementById('user-status-text');
+            const startTestBtn = document.getElementById('start-test-btn');
+            
+            const user = getUserStatus();
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Lessons List -->
-                    <div class="lg:col-span-2">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">دروس الدورة (${lessons.length} درس)</h2>
-                        ${lessons.length > 0 ? lessonsListHtml : '<div class="p-8 bg-yellow-50 rounded-xl border border-yellow-200 text-yellow-800">عفواً، لا توجد دروس مضافة لهذه الدورة بعد.</div>'}
-                    </div>
+            messageEl.classList.add('hidden');
+            form.classList.remove('hidden');
+            statusDisplay.classList.add('hidden');
+            startTestBtn.classList.add('hidden');
+            
+            if (mode === 'register') {
+                messageEl.textContent = 'الوصول للدورات يتطلب التسجيل أولاً.';
+                messageEl.classList.remove('hidden');
+            } else if (mode === 'test_required') {
+                form.classList.add('hidden');
+                statusDisplay.classList.remove('hidden');
+                userStatusText.innerHTML = `مرحباً ${user.name}. يرجى **إكمال اختبار تحديد المستوى** لفتح الدورات.`;
+                startTestBtn.classList.remove('hidden');
+            }
+            
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+        
+        function closeAuthModal() {
+            document.getElementById('auth-modal').style.display = 'none';
+        }
 
-                    <!-- Side Info (Mock) -->
-                    <div class="lg:col-span-1">
-                        <div class="bg-gray-100 p-6 rounded-xl shadow-md sticky top-24">
-                            <h3 class="text-xl font-bold text-gray-800 mb-4">معلومات إضافية</h3>
-                            <ul class="space-y-3 text-gray-700">
-                                <li class="flex items-center"><i data-lucide="award" class="w-5 h-5 ml-2 text-yellow-500"></i> تحصل على شهادة إتمام</li>
-                                <li class="flex items-center"><i data-lucide="clock" class="w-5 h-5 ml-2 text-blue-500"></i> الوصول متاح لمدة عام</li>
-                                <li class="flex items-center"><i data-lucide="message-circle" class="w-5 h-5 ml-2 text-green-500"></i> دعم فني ومناقشات</li>
-                            </ul>
-                            <button class="mt-6 w-full bg-indigo-600 text-white py-2 rounded-full hover:bg-indigo-700">التسجيل في هذه الدورة</button>
-                        </div>
-                    </div>
+        function handleAuthSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('auth-name').value;
+            const phone = document.getElementById('auth-phone').value;
+            
+            // تحقق بسيط من الرقم (للتأكد من أنه رقمي)
+            if (!/^\d+$/.test(phone)) {
+                document.getElementById('auth-message').textContent = 'يرجى إدخال رقم جوال صحيح (أرقام فقط).';
+                document.getElementById('auth-message').classList.remove('hidden');
+                return;
+            }
+
+            // محاكاة تسجيل الدخول/التسجيل
+            const user = getUserStatus();
+            const newUser = {
+                name: name,
+                phone: phone,
+                isAuthenticated: true,
+                isTestCompleted: user.isTestCompleted 
+            };
+            saveUserStatus(newUser);
+            
+            closeAuthModal();
+            
+            if (!newUser.isTestCompleted) {
+                alert(`أهلاً ${name}! تم تسجيل دخولك بنجاح. الآن سيتم توجيهك إلى اختبار تحديد المستوى.`);
+                navigate('placement');
+            } else {
+                alert(`مرحباً بك ${name} مجدداً! يمكنك الآن تصفح الدورات.`);
+                navigate('courses');
+            }
+        }
+
+        // محاكاة إكمال الاختبار (عند الضغط على زر في صفحة الاختبار)
+        function handlePlacementTestComplete() {
+            const user = getUserStatus();
+            if (!user.isAuthenticated) {
+                 openAuthModal('register');
+                 return;
+            }
+
+            if (user.isTestCompleted) {
+                alert('لقد أكملت الاختبار مسبقاً!');
+                return;
+            }
+            
+            const updatedUser = { ...user, isTestCompleted: true };
+            saveUserStatus(updatedUser);
+            
+            alert(`تهانينا، ${user.name}! لقد أكملت اختبار تحديد المستوى بنجاح. يمكنك الآن الوصول إلى جميع الدورات.`);
+            navigate('courses');
+        }
+
+        // ==========================================
+        // 6. LESSON PLAYER LOGIC (جديد)
+        // ==========================================
+
+        function renderLessonPlayer(courseId, lessonId) {
+            const course = getCourses().find(c => c.id === courseId);
+            const lessons = getLessons().filter(l => l.courseId === courseId);
+            const currentLesson = lessons.find(l => l.id === lessonId);
+            
+            if (!currentLesson) {
+                alert("عفواً، لم يتم العثور على هذا الدرس.");
+                return;
+            }
+            
+            navigate('lesson-player');
+
+            document.getElementById('lesson-title-display').textContent = currentLesson.title;
+            document.getElementById('course-title-display').textContent = `دورة: ${course.title} | ${currentLesson.duration}`;
+            
+            // Player Embed
+            document.getElementById('lesson-video-player').innerHTML = `
+                <div class="video-container">
+                    <iframe 
+                        src="${currentLesson.contentUrl}?autoplay=1&controls=1" 
+                        title="${currentLesson.title}" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen>
+                    </iframe>
                 </div>
             `;
+            
+            // Render Sidebar and Progress
+            renderLessonSidebar(courseId, lessonId);
+            updateLessonProgressStatus(lessonId);
+        }
+
+        function renderLessonSidebar(courseId, activeLessonId) {
+            const lessons = getLessons().filter(l => l.courseId === courseId);
+            const completedLessons = getCompletedLessons();
+            const sidebar = document.getElementById('course-lessons-sidebar');
+            
+            sidebar.innerHTML = lessons.map(l => {
+                const isCompleted = completedLessons.includes(l.id);
+                const isActive = l.id === activeLessonId;
+                
+                return `
+                    <li class="p-2 rounded-lg cursor-pointer transition ${isActive ? 'bg-blue-100 font-bold' : 'hover:bg-gray-100'}">
+                        <button onclick="renderLessonPlayer(${courseId}, ${l.id})" class="w-full text-right flex items-center justify-between">
+                            <span class="flex items-center">
+                                <i data-lucide="${isActive ? 'play-circle' : (isCompleted ? 'check-circle' : 'circle')}" class="w-5 h-5 ml-2 ${isActive ? 'text-blue-600' : (isCompleted ? 'text-emerald-500' : 'text-gray-400')}"></i>
+                                ${l.title}
+                            </span>
+                            <span class="text-xs text-gray-500">${l.duration}</span>
+                        </button>
+                    </li>
+                `;
+            }).join('');
+            
+            lucide.createIcons();
+        }
+
+        function markLessonCompleted() {
+            const urlParams = new URLSearchParams(document.getElementById('lesson-video-player').querySelector('iframe').src);
+            const lessonId = parseInt(urlParams.get('lesson-id') || document.getElementById('complete-lesson-btn').dataset.lessonId);
+            const courseId = parseInt(document.getElementById('complete-lesson-btn').dataset.courseId);
+
+            if (!lessonId) return;
+
+            let completedLessons = getCompletedLessons();
+            if (!completedLessons.includes(lessonId)) {
+                completedLessons.push(lessonId);
+                saveCompletedLessons(completedLessons);
+                alert('تم تحديد الدرس كمكتمل بنجاح!');
+            } else {
+                // Remove completion status (toggle)
+                completedLessons = completedLessons.filter(id => id !== lessonId);
+                saveCompletedLessons(completedLessons);
+                alert('تم إزالة علامة الإكمال من الدرس.');
+            }
+            
+            // Re-render status and sidebar
+            updateLessonProgressStatus(lessonId);
+            renderLessonSidebar(courseId, lessonId);
+        }
+
+        function updateLessonProgressStatus(lessonId) {
+            const completedLessons = getCompletedLessons();
+            const isCompleted = completedLessons.includes(lessonId);
+            const btn = document.getElementById('complete-lesson-btn');
+            const statusText = document.getElementById('lesson-complete-status');
+            
+            btn.dataset.lessonId = lessonId; // لحفظ الـ ID في الزر لاستخدامه في MarkCompleted
+            
+            if (isCompleted) {
+                btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                btn.classList.add('bg-amber-500', 'hover:bg-amber-600');
+                btn.querySelector('span').textContent = 'إزالة علامة الإكمال';
+                statusText.textContent = 'تم إكمال هذا الدرس ✅';
+            } else {
+                btn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
+                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+                btn.querySelector('span').textContent = 'تأكيد إكمال الدرس';
+                statusText.textContent = 'الدرس في انتظار الإكمال...';
+            }
             lucide.createIcons();
         }
 
 
         // ==========================================
-        // 5. ADMIN LOGIC (إدارة الدورات والدروس)
+        // 7. ADMIN LOGIC (إدارة الدورات والدروس)
         // ==========================================
         
         let activeAdminTab = 'courses';

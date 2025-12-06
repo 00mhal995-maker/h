@@ -3,1316 +3,226 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>أكاديمية المنتشري للغة الإنجليزية | لوحة تحكم تفاعلية</title>
-    <!-- تضمين Tailwind CSS و Lucide Icons -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>اختبار STEP سماعي - 10 فقرات (C1/C2)</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-        body { font-family: 'Cairo', sans-serif; background-color: #f8fafc; }
-        .page-section { display: none; }
-        .page-section.active { display: block; }
-        .space-x-reverse > * + * { margin-left: 1rem; margin-right: 0; }
-        /* تحسينات النماذج */
-        input, textarea, select {
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 0.5rem 1rem;
+        /* Custom CSS for a professional and clean look */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f4f7;
+            padding: 20px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        h1 {
+            color: #004d40;
+            text-align: center;
+            border-bottom: 3px solid #004d40;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 1.8em;
+        }
+        .instructions, .audio-section {
+            background-color: #e3f2fd;
+            border: 1px solid #90caf9;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .audio-section h3, .instructions h2 {
+            color: #1976d2;
+            margin-top: 0;
+        }
+        .question-block {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            background-color: #fafafa;
+        }
+        .question-block h3 {
+            color: #388e3c;
+            margin-top: 0;
+            font-size: 1.15em;
+            margin-bottom: 15px;
+        }
+        .option-label {
+            display: block;
+            margin-bottom: 10px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, border-color 0.3s;
+            border: 1px solid #eee;
+        }
+        .option-label:hover {
+            background-color: #f0f0f0;
+            border-color: #ccc;
+        }
+        input[type="radio"] {
+            margin-left: 10px;
+        }
+        .submit-btn {
+            display: block;
             width: 100%;
-            transition: border-color 0.2s;
+            padding: 18px;
+            background-color: #004d40;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.3em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 40px;
         }
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: #2563eb;
-            box-shadow: 0 0 0 2px #bfdbfe;
+        .submit-btn:hover {
+            background-color: #00382e;
         }
-        /* تصميم النافذة المنبثقة */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.75);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            display: none; /* مخفية افتراضياً */
+        .thank-you-message {
+            margin-top: 30px;
+            padding: 25px;
+            background-color: #c8e6c9;
+            color: #1b5e20;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: bold;
+            display: none; /* Hidden initially */
         }
-        .modal-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 0.75rem;
-            max-width: 90%;
-            width: 400px;
-            text-align: right;
-            position: relative;
-        }
-        /* لتحديد إطار الفيديو بنسبة 16:9 */
-        .video-container {
-            position: relative;
-            width: 100%;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
-        }
-        .video-container iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border-radius: 0.75rem;
+        /* Mobile responsiveness adjustments */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px 10px;
+                border-radius: 0;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+            .question-block {
+                padding: 15px;
+            }
+            .submit-btn {
+                font-size: 1.1em;
+                padding: 15px;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- Navbar -->
-    <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm shadow-md border-b">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="text-xl font-bold text-blue-800 flex items-center cursor-pointer" onclick="navigate('home')">
-                <i data-lucide="book-open" class="w-6 h-6 ml-2"></i>
-                أكاديمية المنتشري
-            </div>
-            <div class="hidden md:flex space-x-2 space-x-reverse" id="desktop-links"></div>
-            <div class="md:hidden">
-                <button onclick="toggleMobileMenu()" class="text-gray-700 hover:text-blue-600 p-2" id="mobile-menu-btn">
-                    <i data-lucide="menu" class="w-6 h-6"></i>
-                </button>
-            </div>
-        </div>
-        <div class="md:hidden border-t bg-white shadow-lg hidden" id="mobile-menu-dropdown">
-            <div class="flex flex-col p-4 space-y-2" id="mobile-links"></div>
-        </div>
-    </nav>
+<div class="container">
+    <h1>اختبار STEP سماعي - 10 فقرات (C1/C2)</h1>
 
-    <!-- Main Content -->
-    <main class="flex-grow pt-16">
-        
-        <!-- HOME SECTION -->
-        <section id="home" class="page-section active">
-            <header class="pt-16 pb-16 bg-gradient-to-br from-blue-50 to-indigo-100 text-right">
-                <div class="container mx-auto px-4 flex flex-col md:flex-row items-center">
-                    <div class="md:w-1/2 mb-10 md:mb-0">
-                        <h1 class="text-4xl md:text-6xl font-extrabold text-blue-900 leading-tight">أكاديمية المنتشري</h1>
-                        <p class="mt-4 text-xl text-gray-600">منصة متكاملة لإدارة التعلم الاحترافي.</p>
-                        <div class="mt-8 flex space-x-4 space-x-reverse">
-                            <button onclick="checkAccessAndNavigate('courses')" class="bg-blue-600 text-white py-3 px-8 rounded-full shadow-lg hover:bg-blue-700">استكشف الدورات</button>
-                            <button onclick="navigate('placement')" class="bg-white text-blue-600 border-2 border-blue-600 py-3 px-8 rounded-full">اختبار المستوى</button>
-                        </div>
-                    </div>
-                    <div class="md:w-1/2 flex justify-center">
-                        <div class="w-64 h-64 bg-blue-200 rounded-full flex items-center justify-center shadow-2xl overflow-hidden relative">
-                             <div class="absolute inset-0 bg-cover bg-center opacity-80" style="background-image: url('https://placehold.co/800x800/2563EB/ffffff?text=Teacher')" ></div>
-                        </div>
-                    </div>
-                </div>
-            </header>
-            
-            <section class="py-16 bg-gray-50 text-right">
-                <div class="container mx-auto px-4">
-                    <h2 class="text-3xl font-extrabold text-blue-900 mb-4">الدورات المتاحة</h2>
-                    <!-- هنا يتم عرض الدورات ديناميكياً -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8" id="home-curriculums-cards"></div>
-                </div>
-            </section>
-        </section>
-
-        <!-- COURSES SECTION -->
-        <section id="courses" class="page-section pt-24 pb-16 bg-gray-50 text-right min-h-screen">
-            <div class="container mx-auto px-4">
-                <h1 class="text-4xl font-extrabold text-blue-900 mb-8">جميع الدورات والدروس</h1>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div class="lg:col-span-1">
-                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-emerald-500 sticky top-24">
-                            <h2 class="text-2xl font-bold text-emerald-700 mb-4">دروس تجريبية</h2>
-                            <div id="demo-lessons-container"></div> 
-                        </div>
-                    </div>
-                    <div class="lg:col-span-2 space-y-6" id="courses-list-container">
-                        <!-- الدورات الكاملة تعرض هنا -->
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- COURSE DETAILS SECTION -->
-        <section id="course-details" class="page-section pt-24 pb-16 bg-white text-right min-h-screen">
-            <!-- المحتوى يتم تحميله بواسطة JavaScript -->
-            <div class="container mx-auto px-4" id="course-details-content">
-                <p class="text-center text-gray-500 py-20">يتم تحميل تفاصيل الدورة...</p>
-            </div>
-        </section>
-        
-        <!-- LESSON PLAYER SECTION (جديد) -->
-        <section id="lesson-player" class="page-section pt-24 pb-16 bg-gray-50 text-right min-h-screen">
-            <div class="container mx-auto px-4">
-                <div class="flex flex-col lg:flex-row gap-6">
-                    <!-- Main Content: Video Player -->
-                    <div class="lg:w-3/4">
-                        <div class="bg-white p-6 rounded-xl shadow-lg">
-                            <div id="lesson-video-player">
-                                <p class="text-center text-gray-500 py-10">يتم تحميل الفيديو...</p>
-                            </div>
-                            <h1 id="lesson-title-display" class="text-3xl font-extrabold text-blue-900 mt-4 mb-2"></h1>
-                            <p id="course-title-display" class="text-gray-600 mb-4 border-b pb-4"></p>
-                            
-                            <!-- Progress Tracking Button -->
-                            <div class="flex justify-between items-center mt-4">
-                                <button onclick="markLessonCompleted()" id="complete-lesson-btn" class="bg-emerald-600 text-white py-2 px-6 rounded-full font-medium hover:bg-emerald-700 transition flex items-center">
-                                    <i data-lucide="check-circle" class="w-5 h-5 ml-2"></i> 
-                                    <span>تأكيد إكمال الدرس</span>
-                                </button>
-                                <p id="lesson-complete-status" class="text-sm font-semibold text-gray-500"></p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Sidebar: Lessons List -->
-                    <div class="lg:w-1/4">
-                        <div class="bg-white p-4 rounded-xl shadow-lg sticky lg:top-24">
-                            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">دروس الدورة</h2>
-                            <ul id="course-lessons-sidebar" class="space-y-2">
-                                <!-- الدروس يتم تحميلها هنا -->
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-
-        <!-- PLACEMENT TEST SECTION -->
-        <section id="placement" class="page-section py-24 bg-white text-right">
-            <div class="container mx-auto px-4 text-center">
-                <h2 class="text-3xl font-extrabold text-blue-900 mb-4">اختبار تحديد المستوى</h2>
-                <p class="text-gray-600 mb-8">هذا القسم يمكن برمجته ليكون اختباراً تفاعلياً.</p>
-                <div class="p-10 bg-indigo-50 rounded-xl border border-indigo-100 inline-block">
-                    <i data-lucide="clipboard-list" class="w-16 h-16 text-indigo-500 mx-auto mb-4"></i>
-                    <p>الاختبار متاح لمدة 60 دقيقة</p>
-                    <button onclick="handlePlacementTestComplete()" class="mt-4 bg-indigo-600 text-white py-2 px-6 rounded-full hover:bg-indigo-700">بدء الاختبار (إكمال)</button>
-                </div>
-            </div>
-        </section>
-
-        <!-- ADMIN DASHBOARD SECTION -->
-        <section id="admin" class="page-section pt-24 pb-16 bg-gray-50 text-right min-h-screen">
-            <div class="container mx-auto px-4">
-                <h1 class="text-4xl font-extrabold text-blue-900 mb-8 flex items-center justify-between">
-                    <span>لوحة التحكم</span>
-                    <button onclick="resetSystemData()" class="text-xs bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200">استعادة بيانات المصنع</button>
-                </h1>
-                <div class="flex flex-col lg:flex-row gap-8">
-                    <!-- Sidebar -->
-                    <div class="w-full lg:w-64 bg-white p-4 rounded-xl shadow-lg h-fit">
-                        <ul class="space-y-2" id="admin-tabs"></ul>
-                    </div>
-                    <!-- Content -->
-                    <div class="lg:flex-grow bg-white p-8 rounded-xl shadow-lg border border-gray-100" id="admin-main-content"></div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- ============================================== -->
-    <!-- نافذة التسجيل/تسجيل الدخول المنبثقة (Modal) -->
-    <!-- ============================================== -->
-    <div id="auth-modal" class="modal">
-        <div class="modal-content">
-            <button onclick="closeAuthModal()" class="absolute top-3 left-3 text-gray-500 hover:text-gray-900 p-2 rounded-full">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-            <h3 class="text-2xl font-bold text-blue-800 mb-4 border-b pb-2">تسجيل الدخول / مستخدم جديد</h3>
-            <p id="auth-message" class="text-sm text-red-600 mb-4 hidden bg-red-50 p-3 rounded"></p>
-            
-            <form onsubmit="handleAuthSubmit(event)" id="auth-form" class="space-y-4">
-                <div>
-                    <label for="auth-name" class="block text-sm font-medium text-gray-700 mb-1">الاسم الكامل</label>
-                    <input type="text" id="auth-name" required placeholder="ادخل اسمك" class="w-full">
-                </div>
-                <div>
-                    <label for="auth-phone" class="block text-sm font-medium text-gray-700 mb-1">رقم الجوال</label>
-                    <input type="tel" id="auth-phone" required placeholder="مثال: 05xxxxxxx" class="w-full">
-                </div>
-                
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-full hover:bg-blue-700 transition">
-                    تسجيل الدخول / متابعة
-                </button>
-            </form>
-
-            <div id="status-display" class="mt-4 p-4 bg-gray-50 rounded hidden">
-                <p class="text-sm font-medium text-gray-700 mb-2">الحالة الحالية:</p>
-                <p id="user-status-text" class="text-sm text-blue-600"></p>
-                <button onclick="navigate('placement'); closeAuthModal();" id="start-test-btn" class="mt-3 w-full bg-indigo-600 text-white py-2 rounded-full hover:bg-indigo-700 transition hidden">
-                    اذهب لاختبار تحديد المستوى
-                </button>
-            </div>
-
-        </div>
+    <div class="instructions">
+        <h2>تعليمات الاختبار:</h2>
+        <p>1. <strong>المقطع الصوتي:</strong> استمع للنص الصوتي مرة واحدة فقط. يجب عليك الاستماع بدقة لفهم النقاط المعقدة والروابط المنطقية.</p>
+        <p>2. <strong>الأسئلة:</strong> أجب على جميع الأسئلة العشرة. يهدف هذا الاختبار إلى تقييم فهمك للمحتوى الأكاديمي المتقدم (C1/C2).</p>
+        <p>3. <strong>التقديم:</strong> عند الانتهاء، اضغط على زر "تسليم الاختبار". لن تظهر النتيجة أو الإجابات الصحيحة.</p>
     </div>
 
+    <div class="audio-section">
+        <h3>🎧 المقطع الصوتي (Listening Segment)</h3>
+        <!-- ⚠️ PLEASE REPLACE THIS WITH YOUR ACTUAL AUDIO FILE LINK (MP3) ⚠️ -->
+        <audio controls style="width: 100%;">
+            <source src="ضع_هنا_رابط_ملفك_الصوتي_الجديد_باللغة_الإنجليزية.mp3" type="audio/mpeg">
+            المتصفح لا يدعم العنصر الصوتي. يرجى التواصل مع المسؤول.
+        </audio>
+        <!-- The transcript is included for reference only, hidden by default -->
+        <details>
+            <summary style="cursor: pointer; color: #00796b;">عرض نص المقطع الصوتي (النسخة الإنجليزية)</summary>
+            <p style="font-style: italic; font-size: 0.95em;">"The rapid proliferation of quantum computing, while still ostensibly confined to specialized research labs, portends a paradigm shift in data encryption and computational capacity. This technological leap, however, presents an ethical lacuna: the potential for a catastrophic decryption event that could render current cryptographic protocols obsolete, an eventuality termed 'Q-Day.' Simultaneously, the discourse around genetic engineering, particularly CRISPR technology, has moved from academic hypothesis to immediate, palpable reality. The core philosophical debate here centers on 'somatic' versus 'germline' editing. While the former involves modifying genes in non-reproductive cells to cure disease—a widely accepted therapeutic goal—the latter, by altering reproductive cells, introduces heritable changes, touching the very definition of human autonomy and raising the specter of eugenics. It’s a delicate socio-political tightrope walk, juxtaposing profound scientific ambition with the inviolable sanctity of the human genome. Navigating this fraught intersection requires more than just regulatory oversight; it demands an epistemological reckoning with the limits of our hubris and the long-term, potentially incalculable, ramifications of these dual, exponential technologies."</p>
+        </details>
+    </div>
 
-    <!-- Footer -->
-    <footer class="bg-gray-900 text-white py-10 text-right mt-auto">
-        <div class="container mx-auto px-4 text-center">
-            <p>&copy; 2025 أكاديمية المنتشري. جميع الحقوق محفوظة.</p>
+    <form id="step-quiz">
+        <!-- Question 1: Implication and Vocabulary (Quantum) -->
+        <div class="question-block">
+            <h3>1. What primary concern does the speaker associate with the rapid proliferation of quantum computing?</h3>
+            <label class="option-label"><input type="radio" name="q1" value="A"> A) The lack of government funding for specialized research labs.</label>
+            <label class="option-label"><input type="radio" name="q1" value="B"> B) The potential for a catastrophic decryption event rendering current encryption obsolete.</label>
+            <label class="option-label"><input type="radio" name="q1" value="C"> C) The shift in computational capacity from academia to the private sector.</label>
+            <label class="option-label"><input type="radio" name="q1" value="D"> D) The slow speed of adoption for predictive analytical tools.</label>
         </div>
-    </footer>
 
-    <!-- JAVASCRIPT LOGIC -->
-    <script type="module">
-        // ==========================================
-        // Firebase Imports
-        // ==========================================
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, writeBatch, arrayUnion, arrayRemove, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // ==========================================
-        // Global State & Firebase Setup
-        // ==========================================
-
-        // استخدم المتغيرات العمومية المتاحة في بيئة العمل مع إعطاء قيم افتراضية
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-academy-app';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyCqDJvWVMz2blT9P4vrEQQ5CpFAZZBS9Eo",
-            authDomain: "classwithonline.firebaseapp.com",
-            databaseURL: "https://classwithonline-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "classwithonline",
-            storageBucket: "classwithonline.firebasestorage.app",
-            messagingSenderId: "253846485060",
-            appId: "1:253846485060:web:50287705cd9be34ca0e411",
-            measurementId: "G-M9XFLBQZFL"
-        };
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // متغيرات Firebase
-        let app, db, auth;
-        let userId = null;
-        let isAuthReady = false; // flag to control when to start data listeners
-
-        // متغيرات تخزين البيانات المؤقتة (Cache)
-        let cachedCourses = [];
-        let cachedLessons = [];
-        let userStatus = null;
-        let completedLessonsIds = new Set(); // استخدام Set لتخزين مُعرفات الدروس المكتملة
-
-        // مسارات Firestore
-        const PUBLIC_COURSES_COLL = `artifacts/${appId}/public/data/courses`;
-        const PUBLIC_LESSONS_COLL = `artifacts/${appId}/public/data/lessons`;
-        const getUserStatusDocPath = () => `artifacts/${appId}/users/${userId}/status/main`;
-        const getCompletedLessonsDocPath = () => `artifacts/${appId}/users/${userId}/progress/completedLessons`;
-
-        // ==========================================
-        // 1. DATA MANAGEMENT (Firestore)
-        // ==========================================
-        
-        // البيانات الافتراضية للدورات (تستخدم فقط في حال كانت قاعدة البيانات فارغة)
-        const defaultCourses = [
-            { id: '1701', title: 'تأسيس اللغة الإنجليزية', description: 'دورة شاملة للمبتدئين من الصفر.', target: 'مبتدئ', icon: 'book-open' },
-            { id: '1702', title: 'الصف الثالث الثانوي', description: 'مراجعة شاملة لمنهج الثانوية.', target: 'طلاب المدارس', icon: 'users' },
-            { id: '1703', title: 'اختبار STEP', description: 'تدريب مكثف لاجتياز الاختبار.', target: 'متقدم', icon: 'award' }
-        ];
-
-        // البيانات الافتراضية للدروس (تستخدم فقط في حال كانت قاعدة البيانات فارغة)
-        const defaultLessons = [
-            { id: '1001', courseId: '1701', title: 'مقدمة في أساسيات اللغة', type: 'video', contentUrl: 'https://www.youtube.com/embed/Q43Yd107SgM', duration: '12:00', thumbnailUrl: 'https://placehold.co/150x80/2563EB/ffffff?text=Lesson+1' },
-            { id: '1002', courseId: '1701', title: 'أصوات الحروف المتحركة', type: 'video', contentUrl: 'https://www.youtube.com/embed/5F2oD8m88eI', duration: '8:30', thumbnailUrl: 'https://placehold.co/150x80/10B981/ffffff?text=Lesson+2' },
-            { id: '1003', courseId: '1702', title: 'قواعد صياغة الجملة الثانوية', type: 'video', contentUrl: 'https://www.youtube.com/embed/tgbNymZ7vqY', duration: '20:00', thumbnailUrl: 'https://placehold.co/150x80/EF4444/ffffff?text=Lesson+3' }
-        ];
-        
-        // دروس تجريبية لعرضها في قائمة الدورات
-        const demoLessons = [
-            { title: 'درس تجريبي 1: الحروف', duration: '10 د' },
-            { title: 'درس تجريبي 2: الضمائر', duration: '15 د' }
-        ];
-
-        // ==========================================
-        // Firestore Listeners (Real-time data synchronization)
-        // ==========================================
-
-        // Listener للدورات
-        function startCoursesListener() {
-            if (!db) return;
-            const q = collection(db, PUBLIC_COURSES_COLL);
-            onSnapshot(q, async (snapshot) => {
-                const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                // إذا كانت قاعدة البيانات فارغة، قم بتحميل البيانات الافتراضية مرة واحدة فقط
-                if (courses.length === 0) {
-                    await initializeDefaultData();
-                    return; // ننتظر حتى يتم كتابة البيانات الافتراضية وتحديث الـ snapshot
-                }
-
-                // فرز البيانات في الذاكرة لتجنب أخطاء الفهرسة
-                cachedCourses = courses.sort((a, b) => a.id.localeCompare(b.id)); 
-                renderDynamicContent();
-                if(document.getElementById('admin').classList.contains('active')) renderAdminCourses();
-            }, (error) => {
-                console.error("Error listening to courses: ", error);
-            });
-        }
-
-        // Listener للدروس
-        function startLessonsListener() {
-            if (!db) return;
-            const q = collection(db, PUBLIC_LESSONS_COLL);
-            onSnapshot(q, (snapshot) => {
-                cachedLessons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                // إعادة رسم المحتوى للتأكد من تحديث أعداد الدروس
-                renderDynamicContent(); 
-                if(document.getElementById('admin').classList.contains('active')) renderAdminCourses();
-                // إذا كان المستخدم داخل صفحة الدروس، يجب إعادة رسمها
-                const activeSection = document.querySelector('.page-section.active')?.id;
-                if (activeSection === 'lesson-player') {
-                     // محاولة إعادة رسم الشريط الجانبي إذا كان الـ courseId متاحًا
-                     const currentLessonId = parseInt(document.getElementById('complete-lesson-btn')?.dataset.lessonId);
-                     const currentCourseId = parseInt(document.getElementById('complete-lesson-btn')?.dataset.courseId);
-                     if (currentLessonId && currentCourseId) {
-                         renderLessonSidebar(currentCourseId, currentLessonId);
-                     }
-                }
-            }, (error) => {
-                console.error("Error listening to lessons: ", error);
-            });
-        }
-
-        // Listener لحالة إكمال الدروس (خاص بالمستخدم)
-        function startCompletedLessonsListener() {
-            if (!db || !userId) return;
-            const docRef = doc(db, getCompletedLessonsDocPath());
-            
-            onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists() && docSnap.data().lessons) {
-                    completedLessonsIds = new Set(docSnap.data().lessons);
-                } else {
-                    completedLessonsIds = new Set();
-                }
-                // إعادة رسم أي واجهات تعتمد على حالة الإكمال
-                const activeSection = document.querySelector('.page-section.active')?.id;
-                if (activeSection === 'course-details') {
-                    // إذا كان في تفاصيل دورة، نحدد الـ courseId ونعيد رسم التفاصيل
-                    const currentCourseId = document.getElementById('course-details-content')?.dataset.courseId;
-                    if (currentCourseId) renderCourseDetails(parseInt(currentCourseId));
-                }
-                if (activeSection === 'lesson-player') {
-                    const currentLessonId = parseInt(document.getElementById('complete-lesson-btn')?.dataset.lessonId);
-                    const currentCourseId = parseInt(document.getElementById('complete-lesson-btn')?.dataset.courseId);
-                     if (currentLessonId && currentCourseId) {
-                         updateLessonProgressStatus(currentLessonId, currentCourseId);
-                         renderLessonSidebar(currentCourseId, currentLessonId);
-                     }
-                }
-            }, (error) => {
-                console.error("Error listening to completed lessons: ", error);
-            });
-        }
-
-        // ==========================================
-        // 2. CRUD Operations (Firebase)
-        // ==========================================
-
-        // وظيفة تهيئة البيانات الافتراضية
-        async function initializeDefaultData() {
-            if (cachedCourses.length > 0) return; // تم التحميل مسبقًا
-            
-            console.log("Initializing default data...");
-            const batch = writeBatch(db);
-            
-            // 1. إضافة الدورات
-            defaultCourses.forEach(c => {
-                const docRef = doc(db, PUBLIC_COURSES_COLL, c.id);
-                batch.set(docRef, { title: c.title, description: c.description, target: c.target, icon: c.icon });
-            });
-            
-            // 2. إضافة الدروس
-            defaultLessons.forEach(l => {
-                const docRef = doc(db, PUBLIC_LESSONS_COLL, l.id);
-                batch.set(docRef, { courseId: l.courseId, title: l.title, type: l.type, contentUrl: l.contentUrl, duration: l.duration, thumbnailUrl: l.thumbnailUrl });
-            });
-            
-            await batch.commit();
-            console.log("Default data initialization complete.");
-        }
-
-
-        // دالة لإضافة دورة جديدة
-        async function addNewCourse(title, desc, target) {
-            if (!db) return showMessageModal('خطأ: لم يتم تهيئة قاعدة البيانات.', 'error');
-            try {
-                const docRef = doc(collection(db, PUBLIC_COURSES_COLL)); // Firebase يولد ID تلقائي
-                await setDoc(docRef, {
-                    title: title,
-                    description: desc,
-                    target: target,
-                    icon: 'book'
-                });
-                showMessageModal('تم إضافة الدورة بنجاح!');
-            } catch (e) {
-                console.error("Error adding course: ", e);
-                showMessageModal('فشل إضافة الدورة.', 'error');
-            }
-        }
-
-        // دالة لحذف دورة (وحذف جميع دروسها المرتبطة)
-        async function performDeleteCourse(courseId) {
-            if (!db) return showMessageModal('خطأ: لم يتم تهيئة قاعدة البيانات.', 'error');
-            try {
-                const batch = writeBatch(db);
-                
-                // 1. حذف الدروس المرتبطة
-                const lessonsToDelete = cachedLessons.filter(l => l.courseId === courseId.toString());
-                lessonsToDelete.forEach(l => {
-                    const docRef = doc(db, PUBLIC_LESSONS_COLL, l.id);
-                    batch.delete(docRef);
-                });
-
-                // 2. حذف الدورة نفسها
-                const courseDocRef = doc(db, PUBLIC_COURSES_COLL, courseId.toString());
-                batch.delete(courseDocRef);
-
-                await batch.commit();
-                showMessageModal('تم حذف الدورة وجميع دروسها بنجاح!');
-                renderAdminCourses(); // إعادة رسم واجهة لوحة التحكم
-            } catch (e) {
-                console.error("Error deleting course: ", e);
-                showMessageModal('فشل حذف الدورة.', 'error');
-            }
-        }
-
-        // دالة لإضافة درس جديد
-        async function addNewLesson(courseId, title, url, thumbnailUrl, duration) {
-            if (!db) return showMessageModal('خطأ: لم يتم تهيئة قاعدة البيانات.', 'error');
-
-            const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-            const match = url.match(urlPattern);
-            let embedId = '';
-
-            if (match && match[1]) {
-                embedId = match[1];
-            } else {
-                showMessageModal('الرابط غير صالح. يرجى إدخال رابط فيديو YouTube صحيح.', 'error');
-                return false;
-            }
-
-            try {
-                const docRef = doc(collection(db, PUBLIC_LESSONS_COLL)); // Firebase يولد ID تلقائي
-                await setDoc(docRef, {
-                    courseId: courseId.toString(),
-                    title: title,
-                    type: 'video',
-                    contentUrl: `https://www.youtube.com/embed/${embedId}`,
-                    duration: duration,
-                    thumbnailUrl: thumbnailUrl
-                });
-                showMessageModal('تم إضافة الدرس بنجاح!');
-                return true;
-            } catch (e) {
-                console.error("Error adding lesson: ", e);
-                showMessageModal('فشل إضافة الدرس.', 'error');
-                return false;
-            }
-        }
-
-        // دالة لحذف درس
-        async function performDeleteLesson(lessonId, courseId) {
-            if (!db) return showMessageModal('خطأ: لم يتم تهيئة قاعدة البيانات.', 'error');
-            try {
-                const docRef = doc(db, PUBLIC_LESSONS_COLL, lessonId.toString());
-                await deleteDoc(docRef);
-                showMessageModal('تم حذف الدرس بنجاح!');
-                renderAdminLessons(courseId);
-            } catch (e) {
-                console.error("Error deleting lesson: ", e);
-                showMessageModal('فشل حذف الدرس.', 'error');
-            }
-        }
-        
-        // دالة لتحديد الدرس كمكتمل (أو إزالة الإكمال)
-        async function markLessonCompleted(lessonId) {
-            if (!db || !userId) return showMessageModal('يجب تسجيل الدخول لتسجيل التقدم.', 'error');
-            
-            const lessonsRef = doc(db, getCompletedLessonsDocPath());
-            const lessonIdStr = lessonId.toString();
-
-            try {
-                if (completedLessonsIds.has(lessonId)) {
-                    // إزالة علامة الإكمال
-                    await updateDoc(lessonsRef, {
-                        lessons: arrayRemove(lessonIdStr)
-                    });
-                    showMessageModal('تم إزالة علامة الإكمال من الدرس.');
-                } else {
-                    // إضافة علامة الإكمال
-                    await setDoc(lessonsRef, {
-                        lessons: arrayUnion(lessonIdStr)
-                    }, { merge: true });
-                    showMessageModal('تم تحديد الدرس كمكتمل بنجاح!');
-                }
-                
-            } catch (e) {
-                console.error("Error updating lesson progress: ", e);
-                showMessageModal('فشل تحديث حالة إكمال الدرس.', 'error');
-            }
-        }
-
-
-        // ==========================================
-        // 3. User Authentication and Status (Firestore)
-        // ==========================================
-
-        const GUEST_DATA = { name: null, phone: null, isTestCompleted: false };
-
-        // دالة للحصول على حالة المستخدم من Firestore
-        async function fetchUserStatus() {
-            if (!db || !userId) return GUEST_DATA;
-
-            try {
-                const docSnap = await getDoc(doc(db, getUserStatusDocPath()));
-                if (docSnap.exists()) {
-                    return docSnap.data();
-                }
-                return GUEST_DATA;
-            } catch (e) {
-                console.error("Error fetching user status: ", e);
-                return GUEST_DATA;
-            }
-        }
-
-        // دالة لحفظ حالة المستخدم إلى Firestore
-        async function saveUserStatus(data) {
-            if (!db || !userId) return;
-            try {
-                await setDoc(doc(db, getUserStatusDocPath()), data, { merge: true });
-                userStatus = data; // تحديث الحالة المؤقتة
-            } catch (e) {
-                console.error("Error saving user status: ", e);
-            }
-        }
-
-        // محاكاة تسجيل الدخول/التسجيل (يكمل تسجيل الدخول بـ Firebase ثم يحفظ بيانات الاسم/الجوال في Firestore)
-        async function handleAuthSubmit(e) {
-            e.preventDefault();
-            const name = document.getElementById('auth-name').value;
-            const phone = document.getElementById('auth-phone').value;
-            
-            if (!/^\d+$/.test(phone)) {
-                document.getElementById('auth-message').textContent = 'يرجى إدخال رقم جوال صحيح (أرقام فقط).';
-                document.getElementById('auth-message').classList.remove('hidden');
-                return;
-            }
-
-            // يتم استخدام userId الحالي من Firebase Auth
-            const existingStatus = await fetchUserStatus(); // جلب الحالة الحالية قبل التحديث
-
-            const newUserStatus = {
-                name: name,
-                phone: phone,
-                isTestCompleted: existingStatus.isTestCompleted || false,
-            };
-            
-            await saveUserStatus(newUserStatus);
-            userStatus = newUserStatus; // تحديث الحالة المؤقتة
-
-            closeAuthModal();
-            
-            if (!newUserStatus.isTestCompleted) {
-                showMessageModal(`أهلاً ${name}! تم تسجيل دخولك بنجاح. الآن سيتم توجيهك إلى اختبار تحديد المستوى.`);
-                navigate('placement');
-            } else {
-                showMessageModal(`مرحباً بك ${name} مجدداً! يمكنك الآن تصفح الدورات.`);
-                navigate('courses');
-            }
-        }
-
-        // محاكاة إكمال الاختبار
-        async function handlePlacementTestComplete() {
-            if (!isAuthReady || !userId) {
-                 openAuthModal('register');
-                 return;
-            }
-
-            if (userStatus.isTestCompleted) {
-                showMessageModal('لقد أكملت الاختبار مسبقاً!');
-                return;
-            }
-            
-            const updatedUser = { ...userStatus, isTestCompleted: true };
-            await saveUserStatus(updatedUser);
-            userStatus = updatedUser; // تحديث الحالة المؤقتة
-            
-            showMessageModal(`تهانينا، ${userStatus.name}! لقد أكملت اختبار تحديد المستوى بنجاح. يمكنك الآن الوصول إلى جميع الدورات.`);
-            navigate('courses');
-        }
-
-        // استعادة البيانات الأصلية (زر الطوارئ)
-        async function performResetSystemData() {
-            if (!db) return;
-            try {
-                const batch = writeBatch(db);
-                
-                // 1. حذف بيانات الدورات والدروس (العامة)
-                const coursesSnap = await getDocs(collection(db, PUBLIC_COURSES_COLL));
-                coursesSnap.forEach(doc => batch.delete(doc.ref));
-
-                const lessonsSnap = await getDocs(collection(db, PUBLIC_LESSONS_COLL));
-                lessonsSnap.forEach(doc => batch.delete(doc.ref));
-
-                // 2. حذف بيانات المستخدمين (الخاصة) - للتبسيط، نحذف جميع بيانات المستخدمين
-                // بما أننا لا نعرف جميع المستخدمين، سنعتمد على حذف حالة المستخدم الحالي (فقط كمحاكاة)
-                if (userId) {
-                    batch.delete(doc(db, getUserStatusDocPath()));
-                    batch.delete(doc(db, getCompletedLessonsDocPath()));
-                }
-                
-                await batch.commit();
-                
-                // إعادة التهيئة بالبيانات الافتراضية
-                await initializeDefaultData();
-                location.reload(); 
-            } catch (e) {
-                console.error("Error resetting system data: ", e);
-                showMessageModal('فشل استعادة بيانات المصنع.', 'error');
-            }
-        }
-
-
-        // ==========================================
-        // 4. UI Rendering (Dependent on cached data)
-        // ==========================================
-
-        function getLessonByCourseId(courseId) {
-            return cachedLessons.filter(l => l.courseId === courseId.toString());
-        }
-
-        // دالة لعرض رسالة مخصصة بدلاً من alert() أو confirm()
-        function showMessageModal(message, type = 'success') {
-            const color = type === 'error' ? 'red' : (type === 'success' ? 'emerald' : 'blue');
-            const icon = type === 'error' ? 'x-circle' : (type === 'success' ? 'check-circle' : 'info');
-            
-            const modal = document.createElement('div');
-            modal.innerHTML = `
-                <div class="modal" style="display:flex;">
-                    <div class="modal-content text-center space-y-4">
-                        <i data-lucide="${icon}" class="w-10 h-10 text-${color}-500 mx-auto"></i>
-                        <h3 class="text-xl font-bold text-gray-800">${message}</h3>
-                        <button onclick="document.querySelector('.modal').remove()" class="bg-${color}-600 text-white py-2 px-6 rounded-full hover:bg-${color}-700">حسناً</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            lucide.createIcons();
-            // إزالة النافذة تلقائياً بعد 4 ثوانٍ (للرسائل غير الحرجة)
-            if(type !== 'error') {
-                 setTimeout(() => {
-                    const currentModal = document.querySelector('.modal');
-                    if(currentModal && currentModal.contains(modal)) {
-                        modal.remove();
-                    }
-                }, 4000);
-            }
-        }
-
-        // ... (باقي دوال العرض كما هي، لكنها تعتمد على cachedCourses و cachedLessons)
-        
-        function renderLessonPlayer(courseId, lessonId) {
-            const course = cachedCourses.find(c => c.id === courseId.toString());
-            const lessons = getLessonByCourseId(courseId);
-            const currentLesson = lessons.find(l => l.id === lessonId.toString());
-            
-            if (!currentLesson) {
-                showMessageModal("عفواً، لم يتم العثور على هذا الدرس.", 'error');
-                return;
-            }
-            
-            navigate('lesson-player');
-
-            document.getElementById('lesson-title-display').textContent = currentLesson.title;
-            document.getElementById('course-title-display').textContent = `دورة: ${course.title} | ${currentLesson.duration}`; 
-            
-            // Player Embed
-            document.getElementById('lesson-video-player').innerHTML = `
-                <div class="video-container">
-                    <iframe 
-                        src="${currentLesson.contentUrl}?autoplay=1&controls=1" 
-                        title="${currentLesson.title}" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowfullscreen>
-                    </iframe>
-                </div>
-            `;
-            
-            // Render Sidebar and Progress
-            renderLessonSidebar(courseId, lessonId);
-            updateLessonProgressStatus(lessonId, courseId);
-        }
-
-        function renderLessonSidebar(courseId, activeLessonId) {
-            const lessons = getLessonByCourseId(courseId);
-            const sidebar = document.getElementById('course-lessons-sidebar');
-            
-            sidebar.innerHTML = lessons.map(l => {
-                const isCompleted = completedLessonsIds.has(l.id);
-                const isActive = l.id === activeLessonId.toString();
-                
-                return `
-                    <li class="p-2 rounded-lg cursor-pointer transition ${isActive ? 'bg-blue-100 font-bold' : 'hover:bg-gray-100'}">
-                        <button onclick="checkAccessAndNavigate('lesson-player', ${courseId}, ${l.id})" class="w-full text-right flex items-center justify-between">
-                            <span class="flex items-center">
-                                <i data-lucide="${isActive ? 'play-circle' : (isCompleted ? 'check-circle' : 'circle')}" class="w-5 h-5 ml-2 ${isActive ? 'text-blue-600' : (isCompleted ? 'text-emerald-500' : 'text-gray-400')}"></i>
-                                ${l.title}
-                            </span>
-                            <span class="text-xs text-gray-500">${l.duration}</span>
-                        </button>
-                    </li>
-                `;
-            }).join('');
-            
-            lucide.createIcons();
-        }
-
-        function updateLessonProgressStatus(lessonId, courseId) {
-            const isCompleted = completedLessonsIds.has(lessonId.toString());
-            const btn = document.getElementById('complete-lesson-btn');
-            const statusText = document.getElementById('lesson-complete-status');
-            
-            btn.dataset.lessonId = lessonId; 
-            btn.dataset.courseId = courseId;
-            
-            if (isCompleted) {
-                btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-                btn.classList.add('bg-amber-500', 'hover:bg-amber-600');
-                btn.querySelector('span').textContent = 'إزالة علامة الإكمال';
-                statusText.textContent = 'تم إكمال هذا الدرس ✅';
-            } else {
-                btn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
-                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-                btn.querySelector('span').textContent = 'تأكيد إكمال الدرس';
-                statusText.textContent = 'الدرس في انتظار الإكمال...';
-            }
-            lucide.createIcons();
-        }
-        
-        // ربط markLessonCompleted بالزر
-        window.markLessonCompleted = function() {
-            const lessonId = document.getElementById('complete-lesson-btn').dataset.lessonId;
-            if (lessonId) markLessonCompleted(parseInt(lessonId));
-        }
-
-
-        function renderCourseDetails(courseId) {
-            const course = cachedCourses.find(c => c.id === courseId.toString());
-            const lessons = getLessonByCourseId(courseId);
-            const contentContainer = document.getElementById('course-details-content');
-            
-            navigate('course-details');
-            
-            // إضافة courseId كـ dataset للعنصر لاستخدامه في إعادة العرض عند تحديث حالة الإكمال
-            contentContainer.dataset.courseId = courseId; 
-
-            if (!course) {
-                contentContainer.innerHTML = `<div class="p-8 text-center text-red-500">عفواً، لم يتم العثور على هذه الدورة.</div>`;
-                return;
-            }
-
-            // 2. بناء قائمة الدروس
-            const lessonsListHtml = lessons.map(l => {
-                const isCompleted = completedLessonsIds.has(l.id);
-                return `
-                    <div class="bg-white p-4 rounded-xl shadow-md border ${isCompleted ? 'border-emerald-300' : 'border-gray-100'} flex items-center mb-4 transition-transform hover:scale-[1.01]">
-                        <img src="${l.thumbnailUrl}" onerror="this.onerror=null; this.src='https://placehold.co/100x50/cccccc/000000?text=Video';" class="w-24 h-14 object-cover rounded ml-4 flex-shrink-0" alt="صورة الدرس">
-                        <div class="flex-grow">
-                            <h4 class="font-bold text-lg text-gray-800">${l.title}</h4>
-                            <p class="text-sm text-gray-500">فيديو: ${l.duration}</p>
-                        </div>
-                        <div class="flex items-center">
-                            ${isCompleted ? '<i data-lucide="check-circle" class="w-6 h-6 text-emerald-500 ml-3"></i>' : ''}
-                            <button onclick="checkAccessAndNavigate('lesson-player', ${course.id}, ${l.id})" class="bg-emerald-500 text-white px-4 py-2 rounded-full font-medium hover:bg-emerald-600 flex items-center ml-2">
-                                <i data-lucide="play" class="w-4 h-4 ml-1"></i> مشاهدة
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            // 3. بناء هيكل الصفحة
-            contentContainer.innerHTML = `
-                <button onclick="navigate('courses')" class="text-blue-600 hover:text-blue-800 mb-6 flex items-center">
-                    <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i> العودة لقائمة الدورات
-                </button>
-                <div class="bg-blue-50 p-8 rounded-xl shadow-lg mb-8 border-r-4 border-blue-600">
-                    <h1 class="text-4xl font-extrabold text-blue-900 mb-2">${course.title}</h1>
-                    <p class="text-xl text-gray-700">${course.description}</p>
-                    <span class="mt-4 inline-block bg-blue-200 text-blue-800 text-sm px-3 py-1 rounded-full">المستوى المستهدف: ${course.target}</span>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Lessons List -->
-                    <div class="lg:col-span-2">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">دروس الدورة (${lessons.length} درس)</h2>
-                        ${lessons.length > 0 ? lessonsListHtml : '<div class="p-8 bg-yellow-50 rounded-xl border border-yellow-200 text-yellow-800">عفواً، لا توجد دروس مضافة لهذه الدورة بعد.</div>'}
-                    </div>
-
-                    <!-- Side Info (Mock) -->
-                    <div class="lg:col-span-1">
-                        <div class="bg-gray-100 p-6 rounded-xl shadow-md sticky top-24">
-                            <h3 class="text-xl font-bold text-gray-800 mb-4">معلومات إضافية</h3>
-                            <ul class="space-y-3 text-gray-700">
-                                <li class="flex items-center"><i data-lucide="award" class="w-5 h-5 ml-2 text-yellow-500"></i> تحصل على شهادة إتمام</li>
-                                <li class="flex items-center"><i data-lucide="clock" class="w-5 h-5 ml-2 text-blue-500"></i> الوصول متاح لمدة عام</li>
-                                <li class="flex items-center"><i data-lucide="message-circle" class="w-5 h-5 ml-2 text-green-500"></i> دعم فني ومناقشات</li>
-                            </ul>
-                            <button class="mt-6 w-full bg-indigo-600 text-white py-2 rounded-full hover:bg-indigo-700">التسجيل في هذه الدورة</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            lucide.createIcons();
-        }
-
-        // دالة لعرض بطاقات الدورات في الصفحة الرئيسية وقائمة الدورات
-        function renderDynamicContent() {
-            const courses = cachedCourses;
-            const homeContainer = document.getElementById('home-curriculums-cards');
-            const coursesContainer = document.getElementById('courses-list-container');
-            
-            if (homeContainer) {
-                homeContainer.innerHTML = courses.slice(0, 3).map(c => `
-                    <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition border-t-4 border-blue-500 cursor-pointer" onclick="checkAccessAndNavigate('course-details', ${c.id})">
-                        <i data-lucide="${c.icon}" class="w-8 h-8 text-blue-600 mb-3"></i>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">${c.title}</h3>
-                        <p class="text-sm text-gray-600">${c.description}</p>
-                        <span class="mt-3 inline-block bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full">${c.target}</span>
-                    </div>
-                `).join('');
-            }
-            
-            if (coursesContainer) {
-                coursesContainer.innerHTML = courses.map(c => `
-                    <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500 flex justify-between items-center">
-                        <div>
-                            <h3 class="text-2xl font-bold text-gray-800 mb-1">${c.title}</h3>
-                            <p class="text-gray-600">${c.description}</p>
-                            <span class="mt-2 inline-block bg-emerald-100 text-emerald-800 text-sm px-3 py-1 rounded-full">${c.target}</span>
-                        </div>
-                        <button onclick="checkAccessAndNavigate('course-details', ${c.id})" class="bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 font-medium whitespace-nowrap">
-                            عرض التفاصيل
-                        </button>
-                    </div>
-                `).join('');
-            }
-            
-            lucide.createIcons();
-        }
-
-        // ==========================================
-        // 7. ADMIN LOGIC 
-        // ==========================================
-        
-        let activeAdminTab = 'courses';
-
-        function setupAdminDashboard() {
-            const tabs = [
-                { id: 'overview', name: 'نظرة عامة', icon: 'bar-chart' },
-                { id: 'courses', name: 'إدارة الدورات', icon: 'book' },
-                { id: 'users', name: 'الطلاب', icon: 'users' }
-            ];
-            
-            const container = document.getElementById('admin-tabs');
-            container.innerHTML = tabs.map(t => `
-                <li>
-                    <button onclick="renderAdminContent('${t.id}')" data-admin-tab="${t.id}" class="w-full flex items-center p-3 rounded-lg text-gray-600 hover:bg-blue-50 transition">
-                        <i data-lucide="${t.icon}" class="w-5 h-5 ml-2"></i> ${t.name}
-                    </button>
-                </li>
-            `).join('');
-        }
-
-        function renderAdminContent(tabId) {
-            activeAdminTab = tabId;
-            const content = document.getElementById('admin-main-content');
-            
-            document.querySelectorAll('[data-admin-tab]').forEach(b => {
-                if(b.dataset.adminTab === tabId) b.classList.add('bg-blue-100', 'text-blue-700', 'font-bold');
-                else b.classList.remove('bg-blue-100', 'text-blue-700', 'font-bold');
-            });
-
-            if (tabId === 'courses') {
-                renderAdminCourses();
-            } else if (tabId === 'overview') {
-                content.innerHTML = `<h2 class="text-2xl font-bold mb-4">نظرة عامة</h2><div class="grid grid-cols-2 gap-4"><div class="bg-blue-50 p-6 rounded border border-blue-100 text-center"><span class="block text-3xl font-bold text-blue-600">${cachedCourses.length}</span> دورات نشطة</div><div class="bg-green-50 p-6 rounded border border-green-100 text-center"><span class="block text-3xl font-bold text-green-600">--</span> طالب</div></div>`;
-            } else {
-                content.innerHTML = `<h2 class="text-2xl font-bold mb-4">قريباً</h2><p>هذا القسم تحت التطوير.</p>`;
-            }
-            lucide.createIcons();
-        }
-
-        function renderAdminCourses() {
-            const courses = cachedCourses;
-            const content = document.getElementById('admin-main-content');
-            
-            content.innerHTML = `
-                <h2 class="text-2xl font-bold text-blue-900 mb-6">إدارة الدورات الدراسية</h2>
-                
-                <!-- نموذج إضافة دورة -->
-                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
-                    <h3 class="font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="plus-circle" class="w-5 h-5 ml-2"></i> إضافة دورة جديدة</h3>
-                    <form onsubmit="handleCourseSubmit(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm text-gray-600 mb-1">اسم الدورة</label>
-                            <input type="text" id="new-course-title" required placeholder="مثال: قواعد المستوى الثاني">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm text-gray-600 mb-1">الوصف</label>
-                            <textarea id="new-course-desc" rows="2" required placeholder="وصف قصير للدورة..."></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600 mb-1">المستوى المستهدف</label>
-                            <select id="new-course-target">
-                                <option value="مبتدئ">مبتدئ</option>
-                                <option value="متوسط">متوسط</option>
-                                <option value="متقدم">متقدم</option>
-                                <option value="طلاب مدارس">طلاب مدارس</option>
-                            </select>
-                        </div>
-                        <div class="flex items-end">
-                            <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition">حفظ الدورة</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- قائمة الدورات الحالية -->
-                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <table class="w-full text-right">
-                        <thead class="bg-gray-100 text-gray-600 text-sm">
-                            <tr>
-                                <th class="p-4">اسم الدورة</th>
-                                <th class="p-4 hidden md:table-cell">المستوى</th>
-                                <th class="p-4">إدارة المحتوى</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            ${courses.map(c => `
-                                <tr class="hover:bg-gray-50">
-                                    <td class="p-4 font-semibold text-gray-800">${c.title}</td>
-                                    <td class="p-4 hidden md:table-cell text-sm text-gray-500">${c.target}</td>
-                                    <td class="p-4">
-                                        <button onclick="renderAdminLessons('${c.id}')" class="text-indigo-500 hover:text-indigo-700 bg-indigo-50 px-3 py-1 rounded text-sm ml-2">إدارة الدروس (${getLessonByCourseId(c.id).length})</button>
-                                        <button onclick="deleteCourse('${c.id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف الدورة</button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                    ${courses.length === 0 ? '<div class="p-8 text-center text-gray-500">لا توجد دورات مضافة حالياً.</div>' : ''}
-                </div>
-            `;
-            lucide.createIcons();
-        }
-        
-        // دالة لحذف دورة (واجهة فقط)
-        window.deleteCourse = function(id) {
-            // استبدال confirm() بنافذة منبثقة بسيطة
-            const modal = document.createElement('div');
-            modal.innerHTML = `
-                <div class="modal" style="display:flex;">
-                    <div class="modal-content text-center">
-                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد الحذف</h3>
-                        <p class="mb-6">هل أنت متأكد من حذف هذه الدورة وكل دروسها؟</p>
-                        <div class="flex justify-around">
-                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
-                            <button onclick="performDeleteCourse('${id}'); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">تأكيد الحذف</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        function renderAdminLessons(courseId) {
-            const content = document.getElementById('admin-main-content');
-            const course = cachedCourses.find(c => c.id === courseId.toString());
-            const lessons = getLessonByCourseId(courseId);
-
-            if (!course) {
-                content.innerHTML = `<div class="p-8 text-red-500">خطأ: لم يتم العثور على الدورة.</div>`;
-                return;
-            }
-
-            const lessonsListHtml = lessons.map(l => `
-                <tr class="hover:bg-gray-50">
-                    <td class="p-2 w-20">
-                        <img src="${l.thumbnailUrl}" onerror="this.onerror=null; this.src='https://placehold.co/100x50/cccccc/000000?text=No+Image'" class="w-full h-auto object-cover rounded shadow-sm" alt="Thumbnail">
-                    </td>
-                    <td class="p-4 font-semibold text-gray-800">${l.title}</td>
-                    <td class="p-4 hidden md:table-cell text-sm text-gray-500">${l.duration}</td>
-                    <td class="p-4 hidden md:table-cell text-sm text-gray-500"><a href="${l.contentUrl}" target="_blank" class="text-blue-500 hover:underline">مشاهدة الرابط</a></td>
-                    <td class="p-4">
-                        <button onclick="deleteLesson('${l.id}', '${courseId}')" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف</button>
-                    </td>
-                </tr>
-            `).join('');
-
-            content.innerHTML = `
-                <div class="mb-4 flex justify-between items-center border-b pb-4">
-                    <h2 class="text-2xl font-extrabold text-blue-900">إدارة دروس دورة: ${course.title}</h2>
-                    <button onclick="renderAdminCourses()" class="text-sm bg-gray-100 text-gray-600 px-3 py-1 rounded hover:bg-gray-200 flex items-center">
-                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i> العودة للدورات
-                    </button>
-                </div>
-
-                <!-- نموذج إضافة درس -->
-                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
-                    <h3 class="font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="plus-circle" class="w-5 h-5 ml-2"></i> إضافة درس جديد (فيديو يوتيوب)</h3>
-                    <form onsubmit="handleLessonSubmit(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                        <input type="hidden" id="new-lesson-course-id" value="${courseId}">
-                        <div>
-                            <label class="block text-sm text-gray-600 mb-1">عنوان الدرس</label>
-                            <input type="text" id="new-lesson-title" required placeholder="مثال: زمن المضارع البسيط">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600 mb-1">رابط فيديو YouTube</label>
-                            <input type="url" id="new-lesson-url" required placeholder="https://www.youtube.com/watch?v=...">
-                        </div>
-                        <div> 
-                            <label class="block text-sm text-gray-600 mb-1">رابط الصورة المصغرة (Thumbnail)</label>
-                            <input type="url" id="new-lesson-thumbnail-url" required placeholder="https://placehold.co/200x100">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600 mb-1">مدة الدرس (مثال: 15 دقيقة)</label>
-                            <input type="text" id="new-lesson-duration" required placeholder="مثال: 15 دقيقة">
-                        </div>
-                        <div class="flex items-end md:col-span-1">
-                            <button type="submit" class="w-full bg-emerald-600 text-white py-2 px-4 rounded hover:bg-emerald-700 transition">إضافة الدرس</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- قائمة الدروس الحالية -->
-                <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <h3 class="font-bold text-lg p-4 bg-gray-50 border-b">قائمة الدروس (${lessons.length} درس)</h3>
-                    <table class="w-full text-right">
-                        <thead class="bg-gray-100 text-gray-600 text-sm">
-                            <tr>
-                                <th class="p-4">الصورة</th>
-                                <th class="p-4">عنوان الدرس</th>
-                                <th class="p-4 hidden md:table-cell">المدة</th>
-                                <th class="p-4 hidden md:table-cell">الرابط</th>
-                                <th class="p-4">إجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            ${lessonsListHtml}
-                        </tbody>
-                    </table>
-                    ${lessons.length === 0 ? '<div class="p-8 text-center text-gray-500">لا توجد دروس مضافة حالياً.</div>' : ''}
-                </div>
-            `;
-            lucide.createIcons();
-        }
-        
-        // دالة لحذف درس (واجهة فقط)
-        window.deleteLesson = function(lessonId, courseId) {
-            // استبدال confirm() بنافذة منبثقة بسيطة
-            const modal = document.createElement('div');
-            modal.innerHTML = `
-                <div class="modal" style="display:flex;">
-                    <div class="modal-content text-center">
-                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد الحذف</h3>
-                        <p class="mb-6">هل أنت متأكد من حذف هذا الدرس؟</p>
-                        <div class="flex justify-around">
-                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
-                            <button onclick="performDeleteLesson('${lessonId}', '${courseId}'); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">تأكيد الحذف</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        // معالجة تقديم نموذج إضافة دورة
-        async function handleCourseSubmit(e) {
-            e.preventDefault();
-            const title = document.getElementById('new-course-title').value;
-            const desc = document.getElementById('new-course-desc').value;
-            const target = document.getElementById('new-course-target').value;
-            
-            await addNewCourse(title, desc, target);
-            // تفريغ الحقول
-            document.getElementById('new-course-title').value = '';
-            document.getElementById('new-course-desc').value = '';
-        }
-        
-        // معالجة تقديم نموذج إضافة درس (جديد)
-        async function handleLessonSubmit(e) {
-            e.preventDefault();
-            const courseId = document.getElementById('new-lesson-course-id').value;
-            const title = document.getElementById('new-lesson-title').value;
-            const url = document.getElementById('new-lesson-url').value;
-            const thumbnailUrl = document.getElementById('new-lesson-thumbnail-url').value;
-            const duration = document.getElementById('new-lesson-duration').value; // جلب المدة
-            
-            if (await addNewLesson(courseId, title, url, thumbnailUrl, duration)) {
-                // تفريغ الحقول عند النجاح وإعادة رسم القائمة
-                document.getElementById('new-lesson-title').value = '';
-                document.getElementById('new-lesson-url').value = '';
-                document.getElementById('new-lesson-thumbnail-url').value = '';
-                document.getElementById('new-lesson-duration').value = ''; 
-                renderAdminLessons(courseId); 
-            }
-        }
-        
-        // ==========================================
-        // 5. Navigation & Utility Functions
-        // ==========================================
-        
-        window.navigate = function(id) {
-            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-            const target = document.getElementById(id);
-            if (target) {
-                target.classList.add('active');
-            } else {
-                document.getElementById('home').classList.add('active');
-            }
-            
-            document.querySelectorAll('[data-section]').forEach(b => {
-                if(b.dataset.section === id) b.classList.add('bg-blue-100', 'text-blue-700');
-                else b.classList.remove('bg-blue-100', 'text-blue-700');
-            });
-
-            document.getElementById('mobile-menu-dropdown').classList.add('hidden');
-            window.scrollTo(0,0);
-            
-            if(id === 'admin' && isAuthReady) renderAdminContent(activeAdminTab);
-        }
-        
-        window.checkAccessAndNavigate = async function(targetPage, courseId = null, lessonId = null) {
-            if (!isAuthReady) {
-                showMessageModal('جاري التحقق من حالة المستخدم... حاول مرة أخرى.', 'error');
-                return;
-            }
-            
-            if (!userId) {
-                openAuthModal('register');
-                return;
-            }
-            
-            // تحقق من حالة الاختبار عند محاولة الوصول للدورات
-            if (!userStatus.isTestCompleted && targetPage !== 'placement' && targetPage !== 'admin') {
-                openAuthModal('test_required');
-                return;
-            }
-            
-            if (targetPage === 'course-details' && courseId !== null) {
-                renderCourseDetails(courseId);
-            } else if (targetPage === 'lesson-player' && lessonId !== null && courseId !== null) {
-                renderLessonPlayer(courseId, lessonId);
-            } else {
-                navigate(targetPage);
-            }
-        }
-        
-        window.toggleMobileMenu = function() {
-            document.getElementById('mobile-menu-dropdown').classList.toggle('hidden');
-        }
-
-        // ==========================================
-        // 6. INITIALIZATION
-        // ==========================================
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            lucide.createIcons();
-            
-            // 1. Firebase Initialization
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            setLogLevel('debug');
-
-            // 2. Authentication and setup
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    userId = user.uid;
-                    // Sign in was successful, fetch user data from Firestore
-                    userStatus = await fetchUserStatus();
-                } else {
-                    // Sign out or initial anonymous sign-in failed/not run yet
-                    userId = null;
-                    userStatus = GUEST_DATA;
-                }
-                
-                // 3. Setup data listeners *only after* userId is determined
-                if (!isAuthReady) {
-                    startCoursesListener();
-                    startLessonsListener();
-                    isAuthReady = true;
-                }
-                
-                // Setup user-specific listener (only if authenticated)
-                if (userId) {
-                    startCompletedLessonsListener();
-                } else {
-                    completedLessonsIds = new Set(); // مسح البيانات المكتملة للمستخدم السابق
-                }
-
-
-                // 4. Initial Render
-                setupNavigation();
-                setupAdminDashboard();
-                
-                const demoContainer = document.getElementById('demo-lessons-container');
-                if(demoContainer) {
-                    demoContainer.innerHTML = demoLessons.map(l => `
-                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded mb-2">
-                            <span class="text-sm font-bold text-gray-700">${l.title}</span>
-                            <span class="text-xs text-gray-500">${l.duration}</span>
-                        </div>
-                    `).join('');
-                }
-                
-                // البدء من الرئيسية وتحديث الروابط
-                navigate('home');
-                lucide.createIcons(); 
-            });
-
-            // 3. Custom Token Sign-in or Anonymous Sign-in
-            if (initialAuthToken) {
-                try {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } catch (error) {
-                    console.error("Custom token sign-in failed:", error);
-                    await signInAnonymously(auth); // Fallback to anonymous
-                }
-            } else {
-                await signInAnonymously(auth);
-            }
-        });
-
-        // التنقل (تم تحديثه ليعتمد على الدوال العامة)
-        const links = [
-            { name: "الرئيسية", id: "home" },
-            { name: "الدورات", id: "courses", auth: true }, 
-            { name: "اختبار المستوى", id: "placement" },
-            { name: "لوحة التحكم", id: "admin", auth: true }, 
-        ];
-
-        function setupNavigation() {
-            const desktop = document.getElementById('desktop-links');
-            const mobile = document.getElementById('mobile-links');
-            desktop.innerHTML = '';
-            mobile.innerHTML = '';
-            
-            links.forEach(link => {
-                // *************** تم تصحيح الخطأ هنا ***************
-                const action = link.auth ? `checkAccessAndNavigate('${link.id}')` : `Maps('${link.id}')`; 
-                const btn = `<button onclick="${action}" data-section="${link.id}" class="px-4 py-2 rounded-full text-sm font-medium text-gray-700 hover:text-blue-600 transition">${link.name}</button>`;
-                desktop.innerHTML += btn;
-                mobile.innerHTML += `<div class="w-full text-center py-2">${btn}</div>`;
-            });
-            lucide.createIcons();
-        }
-    </script>
-</body>
-</html>
+        <!-- Question 2: Specific Terminology (Vocabulary) -->
+        <div class="question-block">
+            <h3>2. What term does the speaker use to describe the ethical vacuum or gap surrounding the quantum leap?</h3>
+            <label class="option-label"><input type="radio" name="q2" value="A"> A) Paradigmatic Event.</label>
+            <label class="option-label"><input type="radio" name="q2" value="B"> B) Epistemological Reckoning.</label>
+            <label class="option-label"><input type="radio" name="q2" value="C"> C) Ethical Lacuna.</label>
+            <label class="option-label"><input type="radio" name="q2" value="D"> D) Computational Dichotomy.</label>
+        </div>
+
+        <!-- Question 3: Defining Key Concept -->
+        <div class="question-block">
+            <h3>3. The speaker suggests 'Q-Day' is an eventuality that involves what specific outcome?</h3>
+            <label class="option-label"><input type="radio" name="q3" value="A"> A) The day quantum computers become affordable for the average consumer.</label>
+            <label class="option-label"><input type="radio" name="q3" value="B"> B) The point at which all computational protocols are standardized globally.</label>
+            <label class="option-label"><input type="radio" name="q3" value="C"> C) A moment when existing cryptographic security systems fail entirely.</label>
+            <label class="option-label"><input type="radio" name="q3" value="D"> D) The successful implementation of quantum encryption in banking.</label>
+        </div>
+
+        <!-- Question 4: Distinguishing Concepts (CRISPR) -->
+        <div class="question-block">
+            <h3>4. What key distinction does the speaker highlight in the debate around genetic engineering?</h3>
+            <label class="option-label"><input type="radio" name="q4" value="A"> A) CRISPR technology versus traditional gene splicing methods.</label>
+            <label class="option-label"><input type="radio" name="q4" value="B"> B) Therapeutic goals versus scientific ambition.</label>
+            <label class="option-label"><input type="radio" name="q4" value="C"> C) Somatic editing versus germline editing.</label>
+            <label class="option-label"><input type="radio" name="q4" value="D"> D) Regulatory oversight versus socio-political tightrope walk.</label>
+        </div>
+
+        <!-- Question 5: Detailed Understanding of Purpose -->
+        <div class="question-block">
+            <h3>5. According to the speaker, what is the *widely accepted therapeutic goal* of somatic gene editing?</h3>
+            <label class="option-label"><input type="radio" name="q5" value="A"> A) To eliminate all inherited diseases across future generations.</label>
+            <label class="option-label"><input type="radio" name="q5" value="B"> B) To introduce heritable changes that enhance cognitive function.</label>
+            <label class="option-label"><input type="radio" name="q5" value="C"> C) To cure diseases by modifying genes in non-reproductive cells.</label>
+            <label class="option-label"><input type="radio" name="q5" value="D"> D) To create systems that can influence societal norms and behavior.</label>
+        </div>
+
+        <!-- Question 6: Risk/Implications -->
+        <div class="question-block">
+            <h3>6. What philosophical concept does germline editing risk compromising, according to the speaker?</h3>
+            <label class="option-label"><input type="radio" name="q6" value="A"> A) The concept of technological efficiency.</label>
+            <label class="option-label"><input type="radio" name="q6" value="B"> B) The inviolable sanctity of the human genome.</label>
+            <label class="option-label"><input type="radio" name="q6" value="C"> C) The principle of socio-political tightrope walking.</label>
+            <label class="option-label"><input type="radio" name="q6" value="D"> D) The widely accepted therapeutic goal of gene therapy.</label>
+        </div>
+
+        <!-- Question 7: Advanced Vocabulary -->
+        <div class="question-block">
+            <h3>7. What historical risk is 'raised' by germline editing in the text?</h3>
+            <label class="option-label"><input type="radio" name="q7" value="A"> A) The specter of eugenics.</label>
+            <label class="option-label"><input type="radio" name="q7" value="B"> B) The debate over human autonomy.</label>
+            <label class="option-label"><input type="radio" name="q7" value="C"> C) The concept of incalculable ramifications.</label>
+            <label class="option-label"><input type="radio" name="q7" value="D"> D) The shift from hypothesis to reality.</label>
+        </div>
+
+        <!-- Question 8: Tone and Stance -->
+        <div class="question-block">
+            <h3>8. What is the speaker’s overall tone when describing the intersection of scientific ambition and ethical boundaries?</h3>
+            <label class="option-label"><input type="radio" name="q8" value="A"> A) One of detached scientific optimism and excitement.</label>
+            <label class="option-label"><input type="radio" name="q8" value="B"> B) Enthusiastic about heritable changes and genetic enhancement.</label>
+            <label class="option-label"><input type="radio" name="q8" value="C"> C) Measured and cautious, emphasizing a 'delicate socio-political tightrope walk.'</label>
+            <label class="option-label"><input type="radio" name="q8" value="D"> D) Strongly against all forms of genetic modification and computational science.</label>
+        </div>
+
+        <!-- Question 9: General Conclusion/Required Action -->
+        <div class="question-block">
+            <h3>9. What is necessary, besides regulatory oversight, for navigating the challenges of these technologies?</h3>
+            <label class="option-label"><input type="radio" name="q9" value="A"> A) Increased government funding for specialized labs.</label>
+            <label class="option-label"><input type="radio" name="q9" value="B"> B) A wider public acceptance of germline editing.</label>
+            <label class="option-label"><input type="radio" name="q9" value="C"> C) A philosophical 'epistemological reckoning' with our limitations.</label>
+            <label class="option-label"><input type="radio" name="q9" value="D"> D) The complete cessation of CRISPR technology research.</label>
+        </div>
+
+        <!-- Question 10: Summary/Collective Description -->
+        <div class="question-block">
+            <h3>10. The speaker describes quantum computing and genetic engineering as what type of technologies collectively?

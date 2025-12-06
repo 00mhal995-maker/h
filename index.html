@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>أكاديمية المنتشري للغة الإنجليزية | لوحة تحكم تفاعلية</title>
+    <!-- تأكد من استخدام HTTPS الكامل لضمان التحميل على GitHub Pages -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -356,7 +357,7 @@
         }
 
         // دالة لإضافة درس جديد (جديد)
-        function addNewLesson(courseId, title, url, thumbnailUrl) {
+        function addNewLesson(courseId, title, url, thumbnailUrl, duration) { // تمت إضافة 'duration'
             const lessons = getLessons();
             // نمط للتحقق من رابط YouTube واستخراج الـ ID (يعمل مع watch و youtu.be)
             const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
@@ -376,7 +377,7 @@
                 title: title,
                 type: 'video',
                 contentUrl: `https://www.youtube.com/embed/${embedId}`,
-                duration: 'غير محدد',
+                duration: duration || 'غير محدد', // حفظ المدة
                 thumbnailUrl: thumbnailUrl // تخزين الصورة المصغرة
             };
             lessons.push(newLesson);
@@ -555,7 +556,8 @@
             navigate('lesson-player');
 
             document.getElementById('lesson-title-display').textContent = currentLesson.title;
-            document.getElementById('course-title-display').textContent = `دورة: ${course.title} | ${currentLesson.duration}`;
+            // استخدام المدة المخزنة
+            document.getElementById('course-title-display').textContent = `دورة: ${course.title} | ${currentLesson.duration}`; 
             
             // Player Embed
             document.getElementById('lesson-video-player').innerHTML = `
@@ -571,7 +573,7 @@
             
             // Render Sidebar and Progress
             renderLessonSidebar(courseId, lessonId);
-            updateLessonProgressStatus(lessonId);
+            updateLessonProgressStatus(lessonId, courseId);
         }
 
         function renderLessonSidebar(courseId, activeLessonId) {
@@ -585,7 +587,7 @@
                 
                 return `
                     <li class="p-2 rounded-lg cursor-pointer transition ${isActive ? 'bg-blue-100 font-bold' : 'hover:bg-gray-100'}">
-                        <button onclick="renderLessonPlayer(${courseId}, ${l.id})" class="w-full text-right flex items-center justify-between">
+                        <button onclick="checkAccessAndNavigate('lesson-player', ${courseId}, ${l.id})" class="w-full text-right flex items-center justify-between">
                             <span class="flex items-center">
                                 <i data-lucide="${isActive ? 'play-circle' : (isCompleted ? 'check-circle' : 'circle')}" class="w-5 h-5 ml-2 ${isActive ? 'text-blue-600' : (isCompleted ? 'text-emerald-500' : 'text-gray-400')}"></i>
                                 ${l.title}
@@ -600,11 +602,11 @@
         }
 
         function markLessonCompleted() {
-            const urlParams = new URLSearchParams(document.getElementById('lesson-video-player').querySelector('iframe').src);
-            const lessonId = parseInt(urlParams.get('lesson-id') || document.getElementById('complete-lesson-btn').dataset.lessonId);
+            // Note: Lesson ID is stored in the button's dataset for simplicity since the iframe doesn't contain it easily.
+            const lessonId = parseInt(document.getElementById('complete-lesson-btn').dataset.lessonId);
             const courseId = parseInt(document.getElementById('complete-lesson-btn').dataset.courseId);
 
-            if (!lessonId) return;
+            if (!lessonId || !courseId) return;
 
             let completedLessons = getCompletedLessons();
             if (!completedLessons.includes(lessonId)) {
@@ -619,17 +621,18 @@
             }
             
             // Re-render status and sidebar
-            updateLessonProgressStatus(lessonId);
+            updateLessonProgressStatus(lessonId, courseId);
             renderLessonSidebar(courseId, lessonId);
         }
 
-        function updateLessonProgressStatus(lessonId) {
+        function updateLessonProgressStatus(lessonId, courseId) {
             const completedLessons = getCompletedLessons();
             const isCompleted = completedLessons.includes(lessonId);
             const btn = document.getElementById('complete-lesson-btn');
             const statusText = document.getElementById('lesson-complete-status');
             
-            btn.dataset.lessonId = lessonId; // لحفظ الـ ID في الزر لاستخدامه في MarkCompleted
+            btn.dataset.lessonId = lessonId; // Attach IDs for MarkCompleted to use
+            btn.dataset.courseId = courseId;
             
             if (isCompleted) {
                 btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
@@ -790,7 +793,7 @@
                 <!-- نموذج إضافة درس -->
                 <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-8">
                     <h3 class="font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="plus-circle" class="w-5 h-5 ml-2"></i> إضافة درس جديد (فيديو يوتيوب)</h3>
-                    <form onsubmit="handleLessonSubmit(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <form onsubmit="handleLessonSubmit(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4">
                         <input type="hidden" id="new-lesson-course-id" value="${courseId}">
                         <div>
                             <label class="block text-sm text-gray-600 mb-1">عنوان الدرس</label>
@@ -804,7 +807,11 @@
                             <label class="block text-sm text-gray-600 mb-1">رابط الصورة المصغرة (Thumbnail)</label>
                             <input type="url" id="new-lesson-thumbnail-url" required placeholder="https://placehold.co/200x100">
                         </div>
-                        <div class="flex items-end">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">مدة الدرس (مثال: 15 دقيقة)</label>
+                            <input type="text" id="new-lesson-duration" required placeholder="مثال: 15 دقيقة">
+                        </div>
+                        <div class="flex items-end md:col-span-1">
                             <button type="submit" class="w-full bg-emerald-600 text-white py-2 px-4 rounded hover:bg-emerald-700 transition">إضافة الدرس</button>
                         </div>
                     </form>
@@ -853,13 +860,15 @@
             const courseId = document.getElementById('new-lesson-course-id').value;
             const title = document.getElementById('new-lesson-title').value;
             const url = document.getElementById('new-lesson-url').value;
-            const thumbnailUrl = document.getElementById('new-lesson-thumbnail-url').value; // جلب رابط الصورة المصغرة
+            const thumbnailUrl = document.getElementById('new-lesson-thumbnail-url').value;
+            const duration = document.getElementById('new-lesson-duration').value; // جلب المدة
             
-            if (addNewLesson(courseId, title, url, thumbnailUrl)) { // تمرير رابط الصورة المصغرة
+            if (addNewLesson(courseId, title, url, thumbnailUrl, duration)) { // تمرير رابط الصورة المصغرة والمدة
                 // تفريغ الحقول عند النجاح وإعادة رسم القائمة
                 document.getElementById('new-lesson-title').value = '';
                 document.getElementById('new-lesson-url').value = '';
-                document.getElementById('new-lesson-thumbnail-url').value = ''; // تفريغ حقل الصورة
+                document.getElementById('new-lesson-thumbnail-url').value = '';
+                document.getElementById('new-lesson-duration').value = ''; // تفريغ حقل المدة
                 renderAdminLessons(parseInt(courseId)); 
             }
         }

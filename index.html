@@ -357,7 +357,7 @@
         }
 
         // دالة لإضافة درس جديد (جديد)
-        function addNewLesson(courseId, title, url, thumbnailUrl, duration) { // تمت إضافة 'duration'
+        function addNewLesson(courseId, title, url, thumbnailUrl, duration) {
             const lessons = getLessons();
             // نمط للتحقق من رابط YouTube واستخراج الـ ID (يعمل مع watch و youtu.be)
             const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
@@ -430,6 +430,7 @@
             localStorage.setItem(AUTH_KEY, JSON.stringify(data));
         }
 
+        // تم نقل هذه الدالة إلى النطاق العالمي (Global)
         function checkAccessAndNavigate(targetPage, courseId = null, lessonId = null) {
             const user = getUserStatus();
             
@@ -438,7 +439,8 @@
                 return;
             }
 
-            if (!user.isTestCompleted && targetPage !== 'placement') {
+            if (!user.isTestCompleted && targetPage !== 'placement' && targetPage !== 'admin') {
+                // ملاحظة: تم استثناء صفحة الأدمن من شرط الاختبار
                 openAuthModal('test_required');
                 return;
             }

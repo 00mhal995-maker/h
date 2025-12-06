@@ -287,24 +287,42 @@
 
         // جلب وحفظ الدورات
         function getCourses() {
-            const stored = localStorage.getItem('myAppCourses');
-            return stored ? JSON.parse(stored) : defaultCourses;
+            try {
+                const stored = localStorage.getItem('myAppCourses');
+                return stored ? JSON.parse(stored) : defaultCourses;
+            } catch (e) {
+                console.error("Error reading courses from LocalStorage", e);
+                return defaultCourses;
+            }
         }
 
         function saveCourses(courses) {
-            localStorage.setItem('myAppCourses', JSON.stringify(courses));
+            try {
+                localStorage.setItem('myAppCourses', JSON.stringify(courses));
+            } catch (e) {
+                console.error("Error writing courses to LocalStorage", e);
+            }
             renderDynamicContent();
             if(activeAdminTab === 'courses') renderAdminCourses();
         }
 
         // جلب وحفظ الدروس
         function getLessons() {
-            const stored = localStorage.getItem('myAppLessons');
-            return stored ? JSON.parse(stored) : defaultLessons;
+            try {
+                const stored = localStorage.getItem('myAppLessons');
+                return stored ? JSON.parse(stored) : defaultLessons;
+            } catch (e) {
+                console.error("Error reading lessons from LocalStorage", e);
+                return defaultLessons;
+            }
         }
 
         function saveLessons(lessons) {
-            localStorage.setItem('myAppLessons', JSON.stringify(lessons));
+             try {
+                localStorage.setItem('myAppLessons', JSON.stringify(lessons));
+            } catch (e) {
+                console.error("Error writing lessons to LocalStorage", e);
+            }
         }
 
         // جلب وحفظ الدروس المكتملة (جديد)
@@ -314,14 +332,23 @@
             const user = getUserStatus();
             if (!user.isAuthenticated) return [];
             
-            const stored = localStorage.getItem(`${COMPLETED_LESSONS_KEY}_${user.phone}`);
-            return stored ? JSON.parse(stored) : [];
+            try {
+                const stored = localStorage.getItem(`${COMPLETED_LESSONS_KEY}_${user.phone}`);
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                 console.error("Error reading completed lessons from LocalStorage", e);
+                 return [];
+            }
         }
 
         function saveCompletedLessons(completedIds) {
             const user = getUserStatus();
             if (user.isAuthenticated) {
-                localStorage.setItem(`${COMPLETED_LESSONS_KEY}_${user.phone}`, JSON.stringify(completedIds));
+                 try {
+                    localStorage.setItem(`${COMPLETED_LESSONS_KEY}_${user.phone}`, JSON.stringify(completedIds));
+                } catch (e) {
+                    console.error("Error writing completed lessons to LocalStorage", e);
+                }
             }
         }
         
@@ -407,9 +434,16 @@
         // استعادة البيانات الأصلية (زر الطوارئ)
         function resetSystemData() {
             if(confirm('سيتم حذف جميع الدورات والدروس المضافة وبيانات المستخدم (التسجيل والاختبار) والعودة للوضع الافتراضي. هل توافق؟')) {
+                // استخدام clear() قد يكون مشكلة، لذا نستخدم removeItem
                 localStorage.removeItem('myAppCourses');
                 localStorage.removeItem('myAppLessons'); 
-                localStorage.clear(); // مسح LocalStorage بالكامل لتنظيف بيانات التتبع أيضاً
+                localStorage.removeItem(AUTH_KEY);
+                // حذف كل بيانات اكمال الدروس (يفضل مسحها بشكل فردي لكن clear أسرع للمحاكاة)
+                for (let key in localStorage) {
+                    if (key.startsWith(COMPLETED_LESSONS_KEY)) {
+                        localStorage.removeItem(key);
+                    }
+                }
                 location.reload();
             }
         }
@@ -422,12 +456,21 @@
         const GUEST_DATA = { name: null, phone: null, isAuthenticated: false, isTestCompleted: false };
 
         function getUserStatus() {
-            const stored = localStorage.getItem(AUTH_KEY);
-            return stored ? JSON.parse(stored) : GUEST_DATA;
+             try {
+                const stored = localStorage.getItem(AUTH_KEY);
+                return stored ? JSON.parse(stored) : GUEST_DATA;
+            } catch (e) {
+                console.error("Error reading user status from LocalStorage", e);
+                return GUEST_DATA;
+            }
         }
 
         function saveUserStatus(data) {
-            localStorage.setItem(AUTH_KEY, JSON.stringify(data));
+             try {
+                localStorage.setItem(AUTH_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.error("Error writing user status to LocalStorage", e);
+            }
         }
 
         // تم نقل هذه الدالة إلى النطاق العالمي (Global)
@@ -453,6 +496,29 @@
             } else {
                 navigate(targetPage);
             }
+        }
+        
+        // تم نقل هذه الدالة إلى النطاق العالمي (Global)
+        function navigate(id) {
+            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(id);
+            if (target) {
+                target.classList.add('active');
+            } else {
+                // إذا كان الـ ID غير معروف، نعود للرئيسية كخيار أمان
+                document.getElementById('home').classList.add('active');
+            }
+            
+            document.querySelectorAll('[data-section]').forEach(b => {
+                if(b.dataset.section === id) b.classList.add('bg-blue-100', 'text-blue-700');
+                else b.classList.remove('bg-blue-100', 'text-blue-700');
+            });
+
+            document.getElementById('mobile-menu-dropdown').classList.add('hidden');
+            window.scrollTo(0,0);
+            
+            // تحديث محتوى لوحة التحكم أو تفاصيل الدورة عند الانتقال
+            if(id === 'admin') renderAdminContent(activeAdminTab);
         }
 
         function openAuthModal(mode) {
@@ -650,6 +716,71 @@
             lucide.createIcons();
         }
 
+        // ==========================================
+        // 4. STUDENT VIEW (صفحة تفاصيل الدورة)
+        // ==========================================
+        
+        function renderCourseDetails(courseId) {
+            const course = getCourses().find(c => c.id === courseId);
+            const lessons = getLessons().filter(l => l.courseId === courseId);
+            const contentContainer = document.getElementById('course-details-content');
+
+            // 1. الانتقال إلى صفحة التفاصيل
+            navigate('course-details');
+            
+            if (!course) {
+                contentContainer.innerHTML = `<div class="p-8 text-center text-red-500">عفواً، لم يتم العثور على هذه الدورة.</div>`;
+                return;
+            }
+
+            // 2. بناء قائمة الدروس
+            const lessonsListHtml = lessons.map(l => `
+                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100 flex items-center mb-4 transition-transform hover:scale-[1.01]">
+                    <img src="${l.thumbnailUrl}" onerror="this.onerror=null; this.src='https://placehold.co/100x50/cccccc/000000?text=Video';" class="w-24 h-14 object-cover rounded ml-4 flex-shrink-0" alt="صورة الدرس">
+                    <div class="flex-grow">
+                        <h4 class="font-bold text-lg text-gray-800">${l.title}</h4>
+                        <p class="text-sm text-gray-500">فيديو: ${l.duration}</p>
+                    </div>
+                    <button onclick="checkAccessAndNavigate('lesson-player', ${course.id}, ${l.id})" class="bg-emerald-500 text-white px-4 py-2 rounded-full font-medium hover:bg-emerald-600 flex items-center ml-2">
+                        <i data-lucide="play" class="w-4 h-4 ml-1"></i> مشاهدة
+                    </button>
+                </div>
+            `).join('');
+
+            // 3. بناء هيكل الصفحة
+            contentContainer.innerHTML = `
+                <button onclick="navigate('courses')" class="text-blue-600 hover:text-blue-800 mb-6 flex items-center">
+                    <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i> العودة لقائمة الدورات
+                </button>
+                <div class="bg-blue-50 p-8 rounded-xl shadow-lg mb-8 border-r-4 border-blue-600">
+                    <h1 class="text-4xl font-extrabold text-blue-900 mb-2">${course.title}</h1>
+                    <p class="text-xl text-gray-700">${course.description}</p>
+                    <span class="mt-4 inline-block bg-blue-200 text-blue-800 text-sm px-3 py-1 rounded-full">المستوى المستهدف: ${course.target}</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Lessons List -->
+                    <div class="lg:col-span-2">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">دروس الدورة (${lessons.length} درس)</h2>
+                        ${lessons.length > 0 ? lessonsListHtml : '<div class="p-8 bg-yellow-50 rounded-xl border border-yellow-200 text-yellow-800">عفواً، لا توجد دروس مضافة لهذه الدورة بعد.</div>'}
+                    </div>
+
+                    <!-- Side Info (Mock) -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-gray-100 p-6 rounded-xl shadow-md sticky top-24">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">معلومات إضافية</h3>
+                            <ul class="space-y-3 text-gray-700">
+                                <li class="flex items-center"><i data-lucide="award" class="w-5 h-5 ml-2 text-yellow-500"></i> تحصل على شهادة إتمام</li>
+                                <li class="flex items-center"><i data-lucide="clock" class="w-5 h-5 ml-2 text-blue-500"></i> الوصول متاح لمدة عام</li>
+                                <li class="flex items-center"><i data-lucide="message-circle" class="w-5 h-5 ml-2 text-green-500"></i> دعم فني ومناقشات</li>
+                            </ul>
+                            <button class="mt-6 w-full bg-indigo-600 text-white py-2 rounded-full hover:bg-indigo-700">التسجيل في هذه الدورة</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
 
         // ==========================================
         // 7. ADMIN LOGIC (إدارة الدورات والدروس)
@@ -873,6 +1004,53 @@
                 document.getElementById('new-lesson-duration').value = ''; // تفريغ حقل المدة
                 renderAdminLessons(parseInt(courseId)); 
             }
+        }
+
+        // ==========================================
+        // 8. INITIALIZATION
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            setupNavigation();
+            renderDynamicContent();
+            setupAdminDashboard();
+            
+            // تحميل الدروس التجريبية
+            const demoContainer = document.getElementById('demo-lessons-container');
+            if(demoContainer) {
+                demoContainer.innerHTML = demoLessons.map(l => `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded mb-2">
+                        <span class="text-sm font-bold text-gray-700">${l.title}</span>
+                        <span class="text-xs text-gray-500">${l.duration}</span>
+                    </div>
+                `).join('');
+            }
+
+            // عند تحميل الصفحة لأول مرة، نبدأ من الرئيسية
+            navigate('home');
+        });
+
+        // التنقل
+        const links = [
+            { name: "الرئيسية", id: "home" },
+            { name: "الدورات", id: "courses", auth: true }, 
+            { name: "اختبار المستوى", id: "placement" },
+            { name: "لوحة التحكم", id: "admin" },
+        ];
+
+        function setupNavigation() {
+            const desktop = document.getElementById('desktop-links');
+            const mobile = document.getElementById('mobile-links');
+            desktop.innerHTML = '';
+            mobile.innerHTML = '';
+            
+            links.forEach(link => {
+                const action = link.auth ? `checkAccessAndNavigate('${link.id}')` : `Maps('${link.id}')`;
+                const btn = `<button onclick="${action}" data-section="${link.id}" class="px-4 py-2 rounded-full text-sm font-medium text-gray-700 hover:text-blue-600 transition">${link.name}</button>`;
+                desktop.innerHTML += btn;
+                mobile.innerHTML += `<div class="w-full text-center py-2">${btn}</div>`;
+            });
+            lucide.createIcons();
         }
 
     </script>

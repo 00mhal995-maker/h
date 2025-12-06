@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>أكاديمية المنتشري للغة الإنجليزية | لوحة تحكم تفاعلية</title>
-    <!-- تأكد من استخدام HTTPS الكامل لضمان التحميل على GitHub Pages -->
+    <!-- تضمين Tailwind CSS و Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -261,152 +261,231 @@
     </footer>
 
     <!-- JAVASCRIPT LOGIC -->
-    <script>
+    <script type="module">
         // ==========================================
-        // 1. DATA MANAGEMENT (LocalStorage)
+        // Firebase Imports
+        // ==========================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, writeBatch, arrayUnion, arrayRemove, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // Global State & Firebase Setup
+        // ==========================================
+
+        // استخدم المتغيرات العمومية المتاحة في بيئة العمل مع إعطاء قيم افتراضية
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-academy-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyCqDJvWVMz2blT9P4vrEQQ5CpFAZZBS9Eo",
+            authDomain: "classwithonline.firebaseapp.com",
+            databaseURL: "https://classwithonline-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "classwithonline",
+            storageBucket: "classwithonline.firebasestorage.app",
+            messagingSenderId: "253846485060",
+            appId: "1:253846485060:web:50287705cd9be34ca0e411",
+            measurementId: "G-M9XFLBQZFL"
+        };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // متغيرات Firebase
+        let app, db, auth;
+        let userId = null;
+        let isAuthReady = false; // flag to control when to start data listeners
+
+        // متغيرات تخزين البيانات المؤقتة (Cache)
+        let cachedCourses = [];
+        let cachedLessons = [];
+        let userStatus = null;
+        let completedLessonsIds = new Set(); // استخدام Set لتخزين مُعرفات الدروس المكتملة
+
+        // مسارات Firestore
+        const PUBLIC_COURSES_COLL = `artifacts/${appId}/public/data/courses`;
+        const PUBLIC_LESSONS_COLL = `artifacts/${appId}/public/data/lessons`;
+        const getUserStatusDocPath = () => `artifacts/${appId}/users/${userId}/status/main`;
+        const getCompletedLessonsDocPath = () => `artifacts/${appId}/users/${userId}/progress/completedLessons`;
+
+        // ==========================================
+        // 1. DATA MANAGEMENT (Firestore)
         // ==========================================
         
-        // البيانات الافتراضية للدورات
+        // البيانات الافتراضية للدورات (تستخدم فقط في حال كانت قاعدة البيانات فارغة)
         const defaultCourses = [
-            { id: 1701, title: 'تأسيس اللغة الإنجليزية', description: 'دورة شاملة للمبتدئين من الصفر.', target: 'مبتدئ', icon: 'book-open' },
-            { id: 1702, title: 'الصف الثالث الثانوي', description: 'مراجعة شاملة لمنهج الثانوية.', target: 'طلاب المدارس', icon: 'users' },
-            { id: 1703, title: 'اختبار STEP', description: 'تدريب مكثف لاجتياز الاختبار.', target: 'متقدم', icon: 'award' }
+            { id: '1701', title: 'تأسيس اللغة الإنجليزية', description: 'دورة شاملة للمبتدئين من الصفر.', target: 'مبتدئ', icon: 'book-open' },
+            { id: '1702', title: 'الصف الثالث الثانوي', description: 'مراجعة شاملة لمنهج الثانوية.', target: 'طلاب المدارس', icon: 'users' },
+            { id: '1703', title: 'اختبار STEP', description: 'تدريب مكثف لاجتياز الاختبار.', target: 'متقدم', icon: 'award' }
         ];
 
-        // البيانات الافتراضية للدروس (مرتبطة بـ courseId)
+        // البيانات الافتراضية للدروس (تستخدم فقط في حال كانت قاعدة البيانات فارغة)
         const defaultLessons = [
-            { id: 1001, courseId: 1701, title: 'مقدمة في أساسيات اللغة', type: 'video', contentUrl: 'https://www.youtube.com/embed/Q43Yd107SgM', duration: '12:00', thumbnailUrl: 'https://placehold.co/150x80/2563EB/ffffff?text=Lesson+1' },
-            { id: 1002, courseId: 1701, title: 'أصوات الحروف المتحركة', type: 'video', contentUrl: 'https://www.youtube.com/embed/5F2oD8m88eI', duration: '8:30', thumbnailUrl: 'https://placehold.co/150x80/10B981/ffffff?text=Lesson+2' },
-            { id: 1003, courseId: 1702, title: 'قواعد صياغة الجملة الثانوية', type: 'video', contentUrl: 'https://www.youtube.com/embed/tgbNymZ7vqY', duration: '20:00', thumbnailUrl: 'https://placehold.co/150x80/EF4444/ffffff?text=Lesson+3' }
+            { id: '1001', courseId: '1701', title: 'مقدمة في أساسيات اللغة', type: 'video', contentUrl: 'https://www.youtube.com/embed/Q43Yd107SgM', duration: '12:00', thumbnailUrl: 'https://placehold.co/150x80/2563EB/ffffff?text=Lesson+1' },
+            { id: '1002', courseId: '1701', title: 'أصوات الحروف المتحركة', type: 'video', contentUrl: 'https://www.youtube.com/embed/5F2oD8m88eI', duration: '8:30', thumbnailUrl: 'https://placehold.co/150x80/10B981/ffffff?text=Lesson+2' },
+            { id: '1003', courseId: '1702', title: 'قواعد صياغة الجملة الثانوية', type: 'video', contentUrl: 'https://www.youtube.com/embed/tgbNymZ7vqY', duration: '20:00', thumbnailUrl: 'https://placehold.co/150x80/EF4444/ffffff?text=Lesson+3' }
         ];
         
+        // دروس تجريبية لعرضها في قائمة الدورات
         const demoLessons = [
             { title: 'درس تجريبي 1: الحروف', duration: '10 د' },
             { title: 'درس تجريبي 2: الضمائر', duration: '15 د' }
         ];
 
-        // جلب وحفظ الدورات
-        function getCourses() {
-            try {
-                const stored = localStorage.getItem('myAppCourses');
-                return stored ? JSON.parse(stored) : defaultCourses;
-            } catch (e) {
-                console.error("Error reading courses from LocalStorage", e);
-                return defaultCourses;
-            }
-        }
+        // ==========================================
+        // Firestore Listeners (Real-time data synchronization)
+        // ==========================================
 
-        function saveCourses(courses) {
-            try {
-                localStorage.setItem('myAppCourses', JSON.stringify(courses));
-            } catch (e) {
-                console.error("Error writing courses to LocalStorage", e);
-            }
-            renderDynamicContent();
-            if(activeAdminTab === 'courses') renderAdminCourses();
-        }
-
-        // جلب وحفظ الدروس
-        function getLessons() {
-            try {
-                const stored = localStorage.getItem('myAppLessons');
-                return stored ? JSON.parse(stored) : defaultLessons;
-            } catch (e) {
-                console.error("Error reading lessons from LocalStorage", e);
-                return defaultLessons;
-            }
-        }
-
-        function saveLessons(lessons) {
-             try {
-                localStorage.setItem('myAppLessons', JSON.stringify(lessons));
-            } catch (e) {
-                console.error("Error writing lessons to LocalStorage", e);
-            }
-        }
-
-        // جلب وحفظ الدروس المكتملة (جديد)
-        const COMPLETED_LESSONS_KEY = 'completedLessons';
-
-        function getCompletedLessons() {
-            const user = getUserStatus();
-            if (!user.isAuthenticated) return [];
-            
-            try {
-                const stored = localStorage.getItem(`${COMPLETED_LESSONS_KEY}_${user.phone}`);
-                return stored ? JSON.parse(stored) : [];
-            } catch (e) {
-                 console.error("Error reading completed lessons from LocalStorage", e);
-                 return [];
-            }
-        }
-
-        function saveCompletedLessons(completedIds) {
-            const user = getUserStatus();
-            if (user.isAuthenticated) {
-                 try {
-                    localStorage.setItem(`${COMPLETED_LESSONS_KEY}_${user.phone}`, JSON.stringify(completedIds));
-                } catch (e) {
-                    console.error("Error writing completed lessons to LocalStorage", e);
+        // Listener للدورات
+        function startCoursesListener() {
+            if (!db) return;
+            const q = collection(db, PUBLIC_COURSES_COLL);
+            onSnapshot(q, async (snapshot) => {
+                const courses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // إذا كانت قاعدة البيانات فارغة، قم بتحميل البيانات الافتراضية مرة واحدة فقط
+                if (courses.length === 0) {
+                    await initializeDefaultData();
+                    return; // ننتظر حتى يتم كتابة البيانات الافتراضية وتحديث الـ snapshot
                 }
-            }
+
+                // فرز البيانات في الذاكرة لتجنب أخطاء الفهرسة
+                cachedCourses = courses.sort((a, b) => a.id.localeCompare(b.id)); 
+                renderDynamicContent();
+                if(document.getElementById('admin').classList.contains('active')) renderAdminCourses();
+            }, (error) => {
+                console.error("Error listening to courses: ", error);
+            });
         }
-        
+
+        // Listener للدروس
+        function startLessonsListener() {
+            if (!db) return;
+            const q = collection(db, PUBLIC_LESSONS_COLL);
+            onSnapshot(q, (snapshot) => {
+                cachedLessons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // إعادة رسم المحتوى للتأكد من تحديث أعداد الدروس
+                renderDynamicContent(); 
+                if(document.getElementById('admin').classList.contains('active')) renderAdminCourses();
+                // إذا كان المستخدم داخل صفحة الدروس، يجب إعادة رسمها
+                const activeSection = document.querySelector('.page-section.active')?.id;
+                if (activeSection === 'lesson-player') {
+                     // محاولة إعادة رسم الشريط الجانبي إذا كان الـ courseId متاحًا
+                     const currentLessonId = parseInt(document.getElementById('complete-lesson-btn')?.dataset.lessonId);
+                     const currentCourseId = parseInt(document.getElementById('complete-lesson-btn')?.dataset.courseId);
+                     if (currentLessonId && currentCourseId) {
+                         renderLessonSidebar(currentCourseId, currentLessonId);
+                     }
+                }
+            }, (error) => {
+                console.error("Error listening to lessons: ", error);
+            });
+        }
+
+        // Listener لحالة إكمال الدروس (خاص بالمستخدم)
+        function startCompletedLessonsListener() {
+            if (!db || !userId) return;
+            const docRef = doc(db, getCompletedLessonsDocPath());
+            
+            onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists() && docSnap.data().lessons) {
+                    completedLessonsIds = new Set(docSnap.data().lessons);
+                } else {
+                    completedLessonsIds = new Set();
+                }
+                // إعادة رسم أي واجهات تعتمد على حالة الإكمال
+                const activeSection = document.querySelector('.page-section.active')?.id;
+                if (activeSection === 'course-details') {
+                    // إذا كان في تفاصيل دورة، نحدد الـ courseId ونعيد رسم التفاصيل
+                    const currentCourseId = document.getElementById('course-details-content')?.dataset.courseId;
+                    if (currentCourseId) renderCourseDetails(parseInt(currentCourseId));
+                }
+                if (activeSection === 'lesson-player') {
+                    const currentLessonId = parseInt(document.getElementById('complete-lesson-btn')?.dataset.lessonId);
+                    const currentCourseId = parseInt(document.getElementById('complete-lesson-btn')?.dataset.courseId);
+                     if (currentLessonId && currentCourseId) {
+                         updateLessonProgressStatus(currentLessonId, currentCourseId);
+                         renderLessonSidebar(currentCourseId, currentLessonId);
+                     }
+                }
+            }, (error) => {
+                console.error("Error listening to completed lessons: ", error);
+            });
+        }
+
+        // ==========================================
+        // 2. CRUD Operations (Firebase)
+        // ==========================================
+
+        // وظيفة تهيئة البيانات الافتراضية
+        async function initializeDefaultData() {
+            if (cachedCourses.length > 0) return; // تم التحميل مسبقًا
+            
+            console.log("Initializing default data...");
+            const batch = writeBatch(db);
+            
+            // 1. إضافة الدورات
+            defaultCourses.forEach(c => {
+                const docRef = doc(db, PUBLIC_COURSES_COLL, c.id);
+                batch.set(docRef, { title: c.title, description: c.description, target: c.target, icon: c.icon });
+            });
+            
+            // 2. إضافة الدروس
+            defaultLessons.forEach(l => {
+                const docRef = doc(db, PUBLIC_LESSONS_COLL, l.id);
+                batch.set(docRef, { courseId: l.courseId, title: l.title, type: l.type, contentUrl: l.contentUrl, duration: l.duration, thumbnailUrl: l.thumbnailUrl });
+            });
+            
+            await batch.commit();
+            console.log("Default data initialization complete.");
+        }
+
+
         // دالة لإضافة دورة جديدة
-        function addNewCourse(title, desc, target) {
-            const courses = getCourses();
-            const newCourse = {
-                id: Date.now(),
-                title: title,
-                description: desc,
-                target: target,
-                icon: 'book'
-            };
-            courses.push(newCourse);
-            saveCourses(courses);
-            // تم استبدال alert() بنافذة منبثقة بسيطة
-            showMessageModal('تم إضافة الدورة بنجاح!');
+        async function addNewCourse(title, desc, target) {
+            if (!db) return showMessageModal('خطأ: لم يتم تهيئة قاعدة البيانات.', 'error');
+            try {
+                const docRef = doc(collection(db, PUBLIC_COURSES_COLL)); // Firebase يولد ID تلقائي
+                await setDoc(docRef, {
+                    title: title,
+                    description: desc,
+                    target: target,
+                    icon: 'book'
+                });
+                showMessageModal('تم إضافة الدورة بنجاح!');
+            } catch (e) {
+                console.error("Error adding course: ", e);
+                showMessageModal('فشل إضافة الدورة.', 'error');
+            }
         }
 
         // دالة لحذف دورة (وحذف جميع دروسها المرتبطة)
-        function deleteCourse(id) {
-            // استبدال confirm() بنافذة منبثقة بسيطة
-            const modal = document.createElement('div');
-            modal.innerHTML = `
-                <div class="modal" style="display:flex;">
-                    <div class="modal-content text-center">
-                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد الحذف</h3>
-                        <p class="mb-6">هل أنت متأكد من حذف هذه الدورة وكل دروسها؟</p>
-                        <div class="flex justify-around">
-                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
-                            <button onclick="performDeleteCourse(${id}); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">تأكيد الحذف</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-        
-        function performDeleteCourse(id) {
-            const courses = getCourses();
-            const lessons = getLessons();
-            
-            // 1. حذف الدورة
-            const updatedCourses = courses.filter(c => c.id !== id);
-            saveCourses(updatedCourses);
+        async function performDeleteCourse(courseId) {
+            if (!db) return showMessageModal('خطأ: لم يتم تهيئة قاعدة البيانات.', 'error');
+            try {
+                const batch = writeBatch(db);
+                
+                // 1. حذف الدروس المرتبطة
+                const lessonsToDelete = cachedLessons.filter(l => l.courseId === courseId.toString());
+                lessonsToDelete.forEach(l => {
+                    const docRef = doc(db, PUBLIC_LESSONS_COLL, l.id);
+                    batch.delete(docRef);
+                });
 
-            // 2. حذف الدروس المرتبطة
-            const updatedLessons = lessons.filter(l => l.courseId !== id);
-            saveLessons(updatedLessons);
-            
-            showMessageModal('تم حذف الدورة بنجاح!');
-            renderAdminCourses();
+                // 2. حذف الدورة نفسها
+                const courseDocRef = doc(db, PUBLIC_COURSES_COLL, courseId.toString());
+                batch.delete(courseDocRef);
+
+                await batch.commit();
+                showMessageModal('تم حذف الدورة وجميع دروسها بنجاح!');
+                renderAdminCourses(); // إعادة رسم واجهة لوحة التحكم
+            } catch (e) {
+                console.error("Error deleting course: ", e);
+                showMessageModal('فشل حذف الدورة.', 'error');
+            }
         }
 
-        // دالة لإضافة درس جديد (جديد)
-        function addNewLesson(courseId, title, url, thumbnailUrl, duration) {
-            const lessons = getLessons();
-            // نمط للتحقق من رابط YouTube واستخراج الـ ID (يعمل مع watch و youtu.be)
+        // دالة لإضافة درس جديد
+        async function addNewLesson(courseId, title, url, thumbnailUrl, duration) {
+            if (!db) return showMessageModal('خطأ: لم يتم تهيئة قاعدة البيانات.', 'error');
+
             const urlPattern = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
             const match = url.match(urlPattern);
             let embedId = '';
@@ -418,57 +497,196 @@
                 return false;
             }
 
-            const newLesson = {
-                id: Date.now(),
-                courseId: parseInt(courseId),
-                title: title,
-                type: 'video',
-                contentUrl: `https://www.youtube.com/embed/${embedId}`,
-                duration: duration || 'غير محدد', // حفظ المدة
-                thumbnailUrl: thumbnailUrl // تخزين الصورة المصغرة
-            };
-            lessons.push(newLesson);
-            saveLessons(lessons);
-            showMessageModal('تم إضافة الدرس بنجاح!');
-            return true;
+            try {
+                const docRef = doc(collection(db, PUBLIC_LESSONS_COLL)); // Firebase يولد ID تلقائي
+                await setDoc(docRef, {
+                    courseId: courseId.toString(),
+                    title: title,
+                    type: 'video',
+                    contentUrl: `https://www.youtube.com/embed/${embedId}`,
+                    duration: duration,
+                    thumbnailUrl: thumbnailUrl
+                });
+                showMessageModal('تم إضافة الدرس بنجاح!');
+                return true;
+            } catch (e) {
+                console.error("Error adding lesson: ", e);
+                showMessageModal('فشل إضافة الدرس.', 'error');
+                return false;
+            }
         }
 
-        // دالة لحذف درس (جديد)
-        function deleteLesson(lessonId, courseId) {
-            // استبدال confirm() بنافذة منبثقة بسيطة
-            const modal = document.createElement('div');
-            modal.innerHTML = `
-                <div class="modal" style="display:flex;">
-                    <div class="modal-content text-center">
-                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد الحذف</h3>
-                        <p class="mb-6">هل أنت متأكد من حذف هذا الدرس؟</p>
-                        <div class="flex justify-around">
-                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
-                            <button onclick="performDeleteLesson(${lessonId}, ${courseId}); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">تأكيد الحذف</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
+        // دالة لحذف درس
+        async function performDeleteLesson(lessonId, courseId) {
+            if (!db) return showMessageModal('خطأ: لم يتم تهيئة قاعدة البيانات.', 'error');
+            try {
+                const docRef = doc(db, PUBLIC_LESSONS_COLL, lessonId.toString());
+                await deleteDoc(docRef);
+                showMessageModal('تم حذف الدرس بنجاح!');
+                renderAdminLessons(courseId);
+            } catch (e) {
+                console.error("Error deleting lesson: ", e);
+                showMessageModal('فشل حذف الدرس.', 'error');
+            }
         }
         
-        function performDeleteLesson(lessonId, courseId) {
-            const lessons = getLessons();
-            const updatedLessons = lessons.filter(l => l.id !== lessonId);
-            saveLessons(updatedLessons);
+        // دالة لتحديد الدرس كمكتمل (أو إزالة الإكمال)
+        async function markLessonCompleted(lessonId) {
+            if (!db || !userId) return showMessageModal('يجب تسجيل الدخول لتسجيل التقدم.', 'error');
+            
+            const lessonsRef = doc(db, getCompletedLessonsDocPath());
+            const lessonIdStr = lessonId.toString();
 
-            // إزالة من الدروس المكتملة لجميع المستخدمين (تبسيطاً)
-            const user = getUserStatus();
-            if (user.isAuthenticated) {
-                const completed = getCompletedLessons().filter(id => id !== lessonId);
-                saveCompletedLessons(completed);
+            try {
+                if (completedLessonsIds.has(lessonId)) {
+                    // إزالة علامة الإكمال
+                    await updateDoc(lessonsRef, {
+                        lessons: arrayRemove(lessonIdStr)
+                    });
+                    showMessageModal('تم إزالة علامة الإكمال من الدرس.');
+                } else {
+                    // إضافة علامة الإكمال
+                    await setDoc(lessonsRef, {
+                        lessons: arrayUnion(lessonIdStr)
+                    }, { merge: true });
+                    showMessageModal('تم تحديد الدرس كمكتمل بنجاح!');
+                }
+                
+            } catch (e) {
+                console.error("Error updating lesson progress: ", e);
+                showMessageModal('فشل تحديث حالة إكمال الدرس.', 'error');
+            }
+        }
+
+
+        // ==========================================
+        // 3. User Authentication and Status (Firestore)
+        // ==========================================
+
+        const GUEST_DATA = { name: null, phone: null, isTestCompleted: false };
+
+        // دالة للحصول على حالة المستخدم من Firestore
+        async function fetchUserStatus() {
+            if (!db || !userId) return GUEST_DATA;
+
+            try {
+                const docSnap = await getDoc(doc(db, getUserStatusDocPath()));
+                if (docSnap.exists()) {
+                    return docSnap.data();
+                }
+                return GUEST_DATA;
+            } catch (e) {
+                console.error("Error fetching user status: ", e);
+                return GUEST_DATA;
+            }
+        }
+
+        // دالة لحفظ حالة المستخدم إلى Firestore
+        async function saveUserStatus(data) {
+            if (!db || !userId) return;
+            try {
+                await setDoc(doc(db, getUserStatusDocPath()), data, { merge: true });
+                userStatus = data; // تحديث الحالة المؤقتة
+            } catch (e) {
+                console.error("Error saving user status: ", e);
+            }
+        }
+
+        // محاكاة تسجيل الدخول/التسجيل (يكمل تسجيل الدخول بـ Firebase ثم يحفظ بيانات الاسم/الجوال في Firestore)
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('auth-name').value;
+            const phone = document.getElementById('auth-phone').value;
+            
+            if (!/^\d+$/.test(phone)) {
+                document.getElementById('auth-message').textContent = 'يرجى إدخال رقم جوال صحيح (أرقام فقط).';
+                document.getElementById('auth-message').classList.remove('hidden');
+                return;
             }
 
-            // إعادة رسم واجهة الدروس
-            showMessageModal('تم حذف الدرس بنجاح!');
-            renderAdminLessons(courseId); 
+            // يتم استخدام userId الحالي من Firebase Auth
+            const existingStatus = await fetchUserStatus(); // جلب الحالة الحالية قبل التحديث
+
+            const newUserStatus = {
+                name: name,
+                phone: phone,
+                isTestCompleted: existingStatus.isTestCompleted || false,
+            };
+            
+            await saveUserStatus(newUserStatus);
+            userStatus = newUserStatus; // تحديث الحالة المؤقتة
+
+            closeAuthModal();
+            
+            if (!newUserStatus.isTestCompleted) {
+                showMessageModal(`أهلاً ${name}! تم تسجيل دخولك بنجاح. الآن سيتم توجيهك إلى اختبار تحديد المستوى.`);
+                navigate('placement');
+            } else {
+                showMessageModal(`مرحباً بك ${name} مجدداً! يمكنك الآن تصفح الدورات.`);
+                navigate('courses');
+            }
         }
-        
+
+        // محاكاة إكمال الاختبار
+        async function handlePlacementTestComplete() {
+            if (!isAuthReady || !userId) {
+                 openAuthModal('register');
+                 return;
+            }
+
+            if (userStatus.isTestCompleted) {
+                showMessageModal('لقد أكملت الاختبار مسبقاً!');
+                return;
+            }
+            
+            const updatedUser = { ...userStatus, isTestCompleted: true };
+            await saveUserStatus(updatedUser);
+            userStatus = updatedUser; // تحديث الحالة المؤقتة
+            
+            showMessageModal(`تهانينا، ${userStatus.name}! لقد أكملت اختبار تحديد المستوى بنجاح. يمكنك الآن الوصول إلى جميع الدورات.`);
+            navigate('courses');
+        }
+
+        // استعادة البيانات الأصلية (زر الطوارئ)
+        async function performResetSystemData() {
+            if (!db) return;
+            try {
+                const batch = writeBatch(db);
+                
+                // 1. حذف بيانات الدورات والدروس (العامة)
+                const coursesSnap = await getDocs(collection(db, PUBLIC_COURSES_COLL));
+                coursesSnap.forEach(doc => batch.delete(doc.ref));
+
+                const lessonsSnap = await getDocs(collection(db, PUBLIC_LESSONS_COLL));
+                lessonsSnap.forEach(doc => batch.delete(doc.ref));
+
+                // 2. حذف بيانات المستخدمين (الخاصة) - للتبسيط، نحذف جميع بيانات المستخدمين
+                // بما أننا لا نعرف جميع المستخدمين، سنعتمد على حذف حالة المستخدم الحالي (فقط كمحاكاة)
+                if (userId) {
+                    batch.delete(doc(db, getUserStatusDocPath()));
+                    batch.delete(doc(db, getCompletedLessonsDocPath()));
+                }
+                
+                await batch.commit();
+                
+                // إعادة التهيئة بالبيانات الافتراضية
+                await initializeDefaultData();
+                location.reload(); 
+            } catch (e) {
+                console.error("Error resetting system data: ", e);
+                showMessageModal('فشل استعادة بيانات المصنع.', 'error');
+            }
+        }
+
+
+        // ==========================================
+        // 4. UI Rendering (Dependent on cached data)
+        // ==========================================
+
+        function getLessonByCourseId(courseId) {
+            return cachedLessons.filter(l => l.courseId === courseId.toString());
+        }
+
         // دالة لعرض رسالة مخصصة بدلاً من alert() أو confirm()
         function showMessageModal(message, type = 'success') {
             const color = type === 'error' ? 'red' : (type === 'success' ? 'emerald' : 'blue');
@@ -497,208 +715,12 @@
             }
         }
 
-
-        // استعادة البيانات الأصلية (زر الطوارئ)
-        function resetSystemData() {
-            // استخدام نافذة تأكيد مخصصة
-            const modal = document.createElement('div');
-            modal.innerHTML = `
-                <div class="modal" style="display:flex;">
-                    <div class="modal-content text-center">
-                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد استعادة المصنع</h3>
-                        <p class="mb-6">سيتم حذف جميع البيانات المضافة (دورات، دروس، تسجيلات المستخدمين). هل أنت متأكد؟</p>
-                        <div class="flex justify-around">
-                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
-                            <button onclick="performResetSystemData(); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">نعم، استعادة البيانات</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
+        // ... (باقي دوال العرض كما هي، لكنها تعتمد على cachedCourses و cachedLessons)
         
-        function performResetSystemData() {
-            // استخدام clear() قد يكون مشكلة، لذا نستخدم removeItem
-            localStorage.removeItem('myAppCourses');
-            localStorage.removeItem('myAppLessons'); 
-            localStorage.removeItem(AUTH_KEY);
-            // حذف كل بيانات اكمال الدروس (يفضل مسحها بشكل فردي لكن clear أسرع للمحاكاة)
-            for (let key in localStorage) {
-                if (key.startsWith(COMPLETED_LESSONS_KEY)) {
-                    localStorage.removeItem(key);
-                }
-            }
-            location.reload();
-        }
-
-
-        // ==========================================
-        // 5. AUTHENTICATION & AUTHORIZATION 
-        // ==========================================
-
-        const AUTH_KEY = 'userAuthData';
-        const GUEST_DATA = { name: null, phone: null, isAuthenticated: false, isTestCompleted: false };
-
-        function getUserStatus() {
-             try {
-                const stored = localStorage.getItem(AUTH_KEY);
-                return stored ? JSON.parse(stored) : GUEST_DATA;
-            } catch (e) {
-                console.error("Error reading user status from LocalStorage", e);
-                return GUEST_DATA;
-            }
-        }
-
-        function saveUserStatus(data) {
-             try {
-                localStorage.setItem(AUTH_KEY, JSON.stringify(data));
-            } catch (e) {
-                console.error("Error writing user status to LocalStorage", e);
-            }
-        }
-
-        // تم نقل هذه الدالة إلى النطاق العالمي (Global)
-        function checkAccessAndNavigate(targetPage, courseId = null, lessonId = null) {
-            const user = getUserStatus();
-            
-            if (!user.isAuthenticated) {
-                openAuthModal('register');
-                return;
-            }
-
-            if (!user.isTestCompleted && targetPage !== 'placement' && targetPage !== 'admin') {
-                // ملاحظة: تم استثناء صفحة الأدمن من شرط الاختبار
-                openAuthModal('test_required');
-                return;
-            }
-            
-            // المستخدم مسجل وأكمل الاختبار
-            if (targetPage === 'course-details' && courseId !== null) {
-                renderCourseDetails(courseId);
-            } else if (targetPage === 'lesson-player' && lessonId !== null && courseId !== null) {
-                renderLessonPlayer(courseId, lessonId);
-            } else {
-                navigate(targetPage);
-            }
-        }
-        
-        // تم نقل هذه الدالة إلى النطاق العالمي (Global)
-        function navigate(id) {
-            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-            const target = document.getElementById(id);
-            if (target) {
-                target.classList.add('active');
-            } else {
-                // إذا كان الـ ID غير معروف، نعود للرئيسية كخيار أمان
-                document.getElementById('home').classList.add('active');
-            }
-            
-            document.querySelectorAll('[data-section]').forEach(b => {
-                if(b.dataset.section === id) b.classList.add('bg-blue-100', 'text-blue-700');
-                else b.classList.remove('bg-blue-100', 'text-blue-700');
-            });
-
-            document.getElementById('mobile-menu-dropdown').classList.add('hidden');
-            window.scrollTo(0,0);
-            
-            // تحديث محتوى لوحة التحكم أو تفاصيل الدورة عند الانتقال
-            if(id === 'admin') renderAdminContent(activeAdminTab);
-        }
-
-        function openAuthModal(mode) {
-            const modal = document.getElementById('auth-modal');
-            const messageEl = document.getElementById('auth-message');
-            const form = document.getElementById('auth-form');
-            const statusDisplay = document.getElementById('status-display');
-            const userStatusText = document.getElementById('user-status-text');
-            const startTestBtn = document.getElementById('start-test-btn');
-            
-            const user = getUserStatus();
-
-            messageEl.classList.add('hidden');
-            form.classList.remove('hidden');
-            statusDisplay.classList.add('hidden');
-            startTestBtn.classList.add('hidden');
-            
-            if (mode === 'register') {
-                messageEl.textContent = 'الوصول للدورات يتطلب التسجيل أولاً.';
-                messageEl.classList.remove('hidden');
-            } else if (mode === 'test_required') {
-                form.classList.add('hidden');
-                statusDisplay.classList.remove('hidden');
-                userStatusText.innerHTML = `مرحباً ${user.name}. يرجى **إكمال اختبار تحديد المستوى** لفتح الدورات.`;
-                startTestBtn.classList.remove('hidden');
-            }
-            
-            modal.style.display = 'flex';
-            lucide.createIcons();
-        }
-        
-        function closeAuthModal() {
-            document.getElementById('auth-modal').style.display = 'none';
-        }
-
-        function handleAuthSubmit(e) {
-            e.preventDefault();
-            const name = document.getElementById('auth-name').value;
-            const phone = document.getElementById('auth-phone').value;
-            
-            // تحقق بسيط من الرقم (للتأكد من أنه رقمي)
-            if (!/^\d+$/.test(phone)) {
-                document.getElementById('auth-message').textContent = 'يرجى إدخال رقم جوال صحيح (أرقام فقط).';
-                document.getElementById('auth-message').classList.remove('hidden');
-                return;
-            }
-
-            // محاكاة تسجيل الدخول/التسجيل
-            const user = getUserStatus();
-            const newUser = {
-                name: name,
-                phone: phone,
-                isAuthenticated: true,
-                isTestCompleted: user.isTestCompleted 
-            };
-            saveUserStatus(newUser);
-            
-            closeAuthModal();
-            
-            if (!newUser.isTestCompleted) {
-                showMessageModal(`أهلاً ${name}! تم تسجيل دخولك بنجاح. الآن سيتم توجيهك إلى اختبار تحديد المستوى.`);
-                navigate('placement');
-            } else {
-                showMessageModal(`مرحباً بك ${name} مجدداً! يمكنك الآن تصفح الدورات.`);
-                navigate('courses');
-            }
-        }
-
-        // محاكاة إكمال الاختبار (عند الضغط على زر في صفحة الاختبار)
-        function handlePlacementTestComplete() {
-            const user = getUserStatus();
-            if (!user.isAuthenticated) {
-                 openAuthModal('register');
-                 return;
-            }
-
-            if (user.isTestCompleted) {
-                showMessageModal('لقد أكملت الاختبار مسبقاً!');
-                return;
-            }
-            
-            const updatedUser = { ...user, isTestCompleted: true };
-            saveUserStatus(updatedUser);
-            
-            showMessageModal(`تهانينا، ${user.name}! لقد أكملت اختبار تحديد المستوى بنجاح. يمكنك الآن الوصول إلى جميع الدورات.`);
-            navigate('courses');
-        }
-
-        // ==========================================
-        // 6. LESSON PLAYER LOGIC (جديد)
-        // ==========================================
-
         function renderLessonPlayer(courseId, lessonId) {
-            const course = getCourses().find(c => c.id === courseId);
-            const lessons = getLessons().filter(l => l.courseId === courseId);
-            const currentLesson = lessons.find(l => l.id === lessonId);
+            const course = cachedCourses.find(c => c.id === courseId.toString());
+            const lessons = getLessonByCourseId(courseId);
+            const currentLesson = lessons.find(l => l.id === lessonId.toString());
             
             if (!currentLesson) {
                 showMessageModal("عفواً، لم يتم العثور على هذا الدرس.", 'error');
@@ -708,7 +730,6 @@
             navigate('lesson-player');
 
             document.getElementById('lesson-title-display').textContent = currentLesson.title;
-            // استخدام المدة المخزنة
             document.getElementById('course-title-display').textContent = `دورة: ${course.title} | ${currentLesson.duration}`; 
             
             // Player Embed
@@ -729,13 +750,12 @@
         }
 
         function renderLessonSidebar(courseId, activeLessonId) {
-            const lessons = getLessons().filter(l => l.courseId === courseId);
-            const completedLessons = getCompletedLessons();
+            const lessons = getLessonByCourseId(courseId);
             const sidebar = document.getElementById('course-lessons-sidebar');
             
             sidebar.innerHTML = lessons.map(l => {
-                const isCompleted = completedLessons.includes(l.id);
-                const isActive = l.id === activeLessonId;
+                const isCompleted = completedLessonsIds.has(l.id);
+                const isActive = l.id === activeLessonId.toString();
                 
                 return `
                     <li class="p-2 rounded-lg cursor-pointer transition ${isActive ? 'bg-blue-100 font-bold' : 'hover:bg-gray-100'}">
@@ -753,37 +773,12 @@
             lucide.createIcons();
         }
 
-        function markLessonCompleted() {
-            // Note: Lesson ID is stored in the button's dataset for simplicity since the iframe doesn't contain it easily.
-            const lessonId = parseInt(document.getElementById('complete-lesson-btn').dataset.lessonId);
-            const courseId = parseInt(document.getElementById('complete-lesson-btn').dataset.courseId);
-
-            if (!lessonId || !courseId) return;
-
-            let completedLessons = getCompletedLessons();
-            if (!completedLessons.includes(lessonId)) {
-                completedLessons.push(lessonId);
-                saveCompletedLessons(completedLessons);
-                showMessageModal('تم تحديد الدرس كمكتمل بنجاح!');
-            } else {
-                // Remove completion status (toggle)
-                completedLessons = completedLessons.filter(id => id !== lessonId);
-                saveCompletedLessons(completedLessons);
-                showMessageModal('تم إزالة علامة الإكمال من الدرس.');
-            }
-            
-            // Re-render status and sidebar
-            updateLessonProgressStatus(lessonId, courseId);
-            renderLessonSidebar(courseId, lessonId);
-        }
-
         function updateLessonProgressStatus(lessonId, courseId) {
-            const completedLessons = getCompletedLessons();
-            const isCompleted = completedLessons.includes(lessonId);
+            const isCompleted = completedLessonsIds.has(lessonId.toString());
             const btn = document.getElementById('complete-lesson-btn');
             const statusText = document.getElementById('lesson-complete-status');
             
-            btn.dataset.lessonId = lessonId; // Attach IDs for MarkCompleted to use
+            btn.dataset.lessonId = lessonId; 
             btn.dataset.courseId = courseId;
             
             if (isCompleted) {
@@ -799,20 +794,24 @@
             }
             lucide.createIcons();
         }
-
-        // ==========================================
-        // 4. STUDENT VIEW (صفحة تفاصيل الدورة)
-        // ==========================================
         
-        function renderCourseDetails(courseId) {
-            const course = getCourses().find(c => c.id === courseId);
-            const lessons = getLessons().filter(l => l.courseId === courseId);
-            const completedLessons = getCompletedLessons(); // لتمييز الدروس المكتملة
-            const contentContainer = document.getElementById('course-details-content');
+        // ربط markLessonCompleted بالزر
+        window.markLessonCompleted = function() {
+            const lessonId = document.getElementById('complete-lesson-btn').dataset.lessonId;
+            if (lessonId) markLessonCompleted(parseInt(lessonId));
+        }
 
-            // 1. الانتقال إلى صفحة التفاصيل
+
+        function renderCourseDetails(courseId) {
+            const course = cachedCourses.find(c => c.id === courseId.toString());
+            const lessons = getLessonByCourseId(courseId);
+            const contentContainer = document.getElementById('course-details-content');
+            
             navigate('course-details');
             
+            // إضافة courseId كـ dataset للعنصر لاستخدامه في إعادة العرض عند تحديث حالة الإكمال
+            contentContainer.dataset.courseId = courseId; 
+
             if (!course) {
                 contentContainer.innerHTML = `<div class="p-8 text-center text-red-500">عفواً، لم يتم العثور على هذه الدورة.</div>`;
                 return;
@@ -820,7 +819,7 @@
 
             // 2. بناء قائمة الدروس
             const lessonsListHtml = lessons.map(l => {
-                const isCompleted = completedLessons.includes(l.id);
+                const isCompleted = completedLessonsIds.has(l.id);
                 return `
                     <div class="bg-white p-4 rounded-xl shadow-md border ${isCompleted ? 'border-emerald-300' : 'border-gray-100'} flex items-center mb-4 transition-transform hover:scale-[1.01]">
                         <img src="${l.thumbnailUrl}" onerror="this.onerror=null; this.src='https://placehold.co/100x50/cccccc/000000?text=Video';" class="w-24 h-14 object-cover rounded ml-4 flex-shrink-0" alt="صورة الدرس">
@@ -873,8 +872,43 @@
             lucide.createIcons();
         }
 
+        // دالة لعرض بطاقات الدورات في الصفحة الرئيسية وقائمة الدورات
+        function renderDynamicContent() {
+            const courses = cachedCourses;
+            const homeContainer = document.getElementById('home-curriculums-cards');
+            const coursesContainer = document.getElementById('courses-list-container');
+            
+            if (homeContainer) {
+                homeContainer.innerHTML = courses.slice(0, 3).map(c => `
+                    <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition border-t-4 border-blue-500 cursor-pointer" onclick="checkAccessAndNavigate('course-details', ${c.id})">
+                        <i data-lucide="${c.icon}" class="w-8 h-8 text-blue-600 mb-3"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">${c.title}</h3>
+                        <p class="text-sm text-gray-600">${c.description}</p>
+                        <span class="mt-3 inline-block bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full">${c.target}</span>
+                    </div>
+                `).join('');
+            }
+            
+            if (coursesContainer) {
+                coursesContainer.innerHTML = courses.map(c => `
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1">${c.title}</h3>
+                            <p class="text-gray-600">${c.description}</p>
+                            <span class="mt-2 inline-block bg-emerald-100 text-emerald-800 text-sm px-3 py-1 rounded-full">${c.target}</span>
+                        </div>
+                        <button onclick="checkAccessAndNavigate('course-details', ${c.id})" class="bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 font-medium whitespace-nowrap">
+                            عرض التفاصيل
+                        </button>
+                    </div>
+                `).join('');
+            }
+            
+            lucide.createIcons();
+        }
+
         // ==========================================
-        // 7. ADMIN LOGIC (إدارة الدورات والدروس)
+        // 7. ADMIN LOGIC 
         // ==========================================
         
         let activeAdminTab = 'courses';
@@ -900,7 +934,6 @@
             activeAdminTab = tabId;
             const content = document.getElementById('admin-main-content');
             
-            // تحديث الستايل للتاب النشط
             document.querySelectorAll('[data-admin-tab]').forEach(b => {
                 if(b.dataset.adminTab === tabId) b.classList.add('bg-blue-100', 'text-blue-700', 'font-bold');
                 else b.classList.remove('bg-blue-100', 'text-blue-700', 'font-bold');
@@ -909,16 +942,15 @@
             if (tabId === 'courses') {
                 renderAdminCourses();
             } else if (tabId === 'overview') {
-                content.innerHTML = `<h2 class="text-2xl font-bold mb-4">نظرة عامة</h2><div class="grid grid-cols-2 gap-4"><div class="bg-blue-50 p-6 rounded border border-blue-100 text-center"><span class="block text-3xl font-bold text-blue-600">${getCourses().length}</span> دورات نشطة</div><div class="bg-green-50 p-6 rounded border border-green-100 text-center"><span class="block text-3xl font-bold text-green-600">1,250</span> طالب</div></div>`;
+                content.innerHTML = `<h2 class="text-2xl font-bold mb-4">نظرة عامة</h2><div class="grid grid-cols-2 gap-4"><div class="bg-blue-50 p-6 rounded border border-blue-100 text-center"><span class="block text-3xl font-bold text-blue-600">${cachedCourses.length}</span> دورات نشطة</div><div class="bg-green-50 p-6 rounded border border-green-100 text-center"><span class="block text-3xl font-bold text-green-600">--</span> طالب</div></div>`;
             } else {
                 content.innerHTML = `<h2 class="text-2xl font-bold mb-4">قريباً</h2><p>هذا القسم تحت التطوير.</p>`;
             }
             lucide.createIcons();
         }
 
-        // دالة رسم واجهة إدارة الدورات (Form + Table)
         function renderAdminCourses() {
-            const courses = getCourses();
+            const courses = cachedCourses;
             const content = document.getElementById('admin-main-content');
             
             content.innerHTML = `
@@ -967,8 +999,8 @@
                                     <td class="p-4 font-semibold text-gray-800">${c.title}</td>
                                     <td class="p-4 hidden md:table-cell text-sm text-gray-500">${c.target}</td>
                                     <td class="p-4">
-                                        <button onclick="renderAdminLessons(${c.id})" class="text-indigo-500 hover:text-indigo-700 bg-indigo-50 px-3 py-1 rounded text-sm ml-2">إدارة الدروس (${getLessons().filter(l => l.courseId === c.id).length})</button>
-                                        <button onclick="deleteCourse(${c.id})" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف الدورة</button>
+                                        <button onclick="renderAdminLessons('${c.id}')" class="text-indigo-500 hover:text-indigo-700 bg-indigo-50 px-3 py-1 rounded text-sm ml-2">إدارة الدروس (${getLessonByCourseId(c.id).length})</button>
+                                        <button onclick="deleteCourse('${c.id}')" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف الدورة</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -979,13 +1011,30 @@
             `;
             lucide.createIcons();
         }
+        
+        // دالة لحذف دورة (واجهة فقط)
+        window.deleteCourse = function(id) {
+            // استبدال confirm() بنافذة منبثقة بسيطة
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal" style="display:flex;">
+                    <div class="modal-content text-center">
+                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد الحذف</h3>
+                        <p class="mb-6">هل أنت متأكد من حذف هذه الدورة وكل دروسها؟</p>
+                        <div class="flex justify-around">
+                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
+                            <button onclick="performDeleteCourse('${id}'); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">تأكيد الحذف</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
 
-        // دالة واجهة إدارة الدروس (جديد)
         function renderAdminLessons(courseId) {
             const content = document.getElementById('admin-main-content');
-            const courses = getCourses();
-            const course = courses.find(c => c.id === courseId);
-            const lessons = getLessons().filter(l => l.courseId === courseId);
+            const course = cachedCourses.find(c => c.id === courseId.toString());
+            const lessons = getLessonByCourseId(courseId);
 
             if (!course) {
                 content.innerHTML = `<div class="p-8 text-red-500">خطأ: لم يتم العثور على الدورة.</div>`;
@@ -1001,7 +1050,7 @@
                     <td class="p-4 hidden md:table-cell text-sm text-gray-500">${l.duration}</td>
                     <td class="p-4 hidden md:table-cell text-sm text-gray-500"><a href="${l.contentUrl}" target="_blank" class="text-blue-500 hover:underline">مشاهدة الرابط</a></td>
                     <td class="p-4">
-                        <button onclick="deleteLesson(${l.id}, ${courseId})" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف</button>
+                        <button onclick="deleteLesson('${l.id}', '${courseId}')" class="text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded text-sm">حذف</button>
                     </td>
                 </tr>
             `).join('');
@@ -1063,23 +1112,41 @@
             `;
             lucide.createIcons();
         }
-
+        
+        // دالة لحذف درس (واجهة فقط)
+        window.deleteLesson = function(lessonId, courseId) {
+            // استبدال confirm() بنافذة منبثقة بسيطة
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal" style="display:flex;">
+                    <div class="modal-content text-center">
+                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد الحذف</h3>
+                        <p class="mb-6">هل أنت متأكد من حذف هذا الدرس؟</p>
+                        <div class="flex justify-around">
+                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
+                            <button onclick="performDeleteLesson('${lessonId}', '${courseId}'); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">تأكيد الحذف</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
 
         // معالجة تقديم نموذج إضافة دورة
-        function handleCourseSubmit(e) {
+        async function handleCourseSubmit(e) {
             e.preventDefault();
             const title = document.getElementById('new-course-title').value;
             const desc = document.getElementById('new-course-desc').value;
             const target = document.getElementById('new-course-target').value;
             
-            addNewCourse(title, desc, target);
+            await addNewCourse(title, desc, target);
             // تفريغ الحقول
             document.getElementById('new-course-title').value = '';
             document.getElementById('new-course-desc').value = '';
         }
         
         // معالجة تقديم نموذج إضافة درس (جديد)
-        function handleLessonSubmit(e) {
+        async function handleLessonSubmit(e) {
             e.preventDefault();
             const courseId = document.getElementById('new-lesson-course-id').value;
             const title = document.getElementById('new-lesson-title').value;
@@ -1087,46 +1154,148 @@
             const thumbnailUrl = document.getElementById('new-lesson-thumbnail-url').value;
             const duration = document.getElementById('new-lesson-duration').value; // جلب المدة
             
-            if (addNewLesson(courseId, title, url, thumbnailUrl, duration)) { // تمرير رابط الصورة المصغرة والمدة
+            if (await addNewLesson(courseId, title, url, thumbnailUrl, duration)) {
                 // تفريغ الحقول عند النجاح وإعادة رسم القائمة
                 document.getElementById('new-lesson-title').value = '';
                 document.getElementById('new-lesson-url').value = '';
                 document.getElementById('new-lesson-thumbnail-url').value = '';
-                document.getElementById('new-lesson-duration').value = ''; // تفريغ حقل المدة
-                renderAdminLessons(parseInt(courseId)); 
+                document.getElementById('new-lesson-duration').value = ''; 
+                renderAdminLessons(courseId); 
             }
+        }
+        
+        // ==========================================
+        // 5. Navigation & Utility Functions
+        // ==========================================
+        
+        window.navigate = function(id) {
+            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(id);
+            if (target) {
+                target.classList.add('active');
+            } else {
+                document.getElementById('home').classList.add('active');
+            }
+            
+            document.querySelectorAll('[data-section]').forEach(b => {
+                if(b.dataset.section === id) b.classList.add('bg-blue-100', 'text-blue-700');
+                else b.classList.remove('bg-blue-100', 'text-blue-700');
+            });
+
+            document.getElementById('mobile-menu-dropdown').classList.add('hidden');
+            window.scrollTo(0,0);
+            
+            if(id === 'admin' && isAuthReady) renderAdminContent(activeAdminTab);
+        }
+        
+        window.checkAccessAndNavigate = async function(targetPage, courseId = null, lessonId = null) {
+            if (!isAuthReady) {
+                showMessageModal('جاري التحقق من حالة المستخدم... حاول مرة أخرى.', 'error');
+                return;
+            }
+            
+            if (!userId) {
+                openAuthModal('register');
+                return;
+            }
+            
+            // تحقق من حالة الاختبار عند محاولة الوصول للدورات
+            if (!userStatus.isTestCompleted && targetPage !== 'placement' && targetPage !== 'admin') {
+                openAuthModal('test_required');
+                return;
+            }
+            
+            if (targetPage === 'course-details' && courseId !== null) {
+                renderCourseDetails(courseId);
+            } else if (targetPage === 'lesson-player' && lessonId !== null && courseId !== null) {
+                renderLessonPlayer(courseId, lessonId);
+            } else {
+                navigate(targetPage);
+            }
+        }
+        
+        window.toggleMobileMenu = function() {
+            document.getElementById('mobile-menu-dropdown').classList.toggle('hidden');
         }
 
         // ==========================================
-        // 8. INITIALIZATION
+        // 6. INITIALIZATION
         // ==========================================
-        document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-            setupNavigation();
-            renderDynamicContent();
-            setupAdminDashboard();
-            
-            // تحميل الدروس التجريبية
-            const demoContainer = document.getElementById('demo-lessons-container');
-            if(demoContainer) {
-                demoContainer.innerHTML = demoLessons.map(l => `
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded mb-2">
-                        <span class="text-sm font-bold text-gray-700">${l.title}</span>
-                        <span class="text-xs text-gray-500">${l.duration}</span>
-                    </div>
-                `).join('');
-            }
 
-            // عند تحميل الصفحة لأول مرة، نبدأ من الرئيسية
-            navigate('home');
+        document.addEventListener('DOMContentLoaded', async () => {
+            lucide.createIcons();
+            
+            // 1. Firebase Initialization
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            setLogLevel('debug');
+
+            // 2. Authentication and setup
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    // Sign in was successful, fetch user data from Firestore
+                    userStatus = await fetchUserStatus();
+                } else {
+                    // Sign out or initial anonymous sign-in failed/not run yet
+                    userId = null;
+                    userStatus = GUEST_DATA;
+                }
+                
+                // 3. Setup data listeners *only after* userId is determined
+                if (!isAuthReady) {
+                    startCoursesListener();
+                    startLessonsListener();
+                    isAuthReady = true;
+                }
+                
+                // Setup user-specific listener (only if authenticated)
+                if (userId) {
+                    startCompletedLessonsListener();
+                } else {
+                    completedLessonsIds = new Set(); // مسح البيانات المكتملة للمستخدم السابق
+                }
+
+
+                // 4. Initial Render
+                setupNavigation();
+                setupAdminDashboard();
+                
+                const demoContainer = document.getElementById('demo-lessons-container');
+                if(demoContainer) {
+                    demoContainer.innerHTML = demoLessons.map(l => `
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded mb-2">
+                            <span class="text-sm font-bold text-gray-700">${l.title}</span>
+                            <span class="text-xs text-gray-500">${l.duration}</span>
+                        </div>
+                    `).join('');
+                }
+                
+                // البدء من الرئيسية وتحديث الروابط
+                navigate('home');
+                lucide.createIcons(); 
+            });
+
+            // 3. Custom Token Sign-in or Anonymous Sign-in
+            if (initialAuthToken) {
+                try {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } catch (error) {
+                    console.error("Custom token sign-in failed:", error);
+                    await signInAnonymously(auth); // Fallback to anonymous
+                }
+            } else {
+                await signInAnonymously(auth);
+            }
         });
 
-        // التنقل
+        // التنقل (تم تحديثه ليعتمد على الدوال العامة)
         const links = [
             { name: "الرئيسية", id: "home" },
             { name: "الدورات", id: "courses", auth: true }, 
             { name: "اختبار المستوى", id: "placement" },
-            { name: "لوحة التحكم", id: "admin", auth: true }, // تم إضافة auth: true لحماية لوحة التحكم
+            { name: "لوحة التحكم", id: "admin", auth: true }, 
         ];
 
         function setupNavigation() {
@@ -1136,7 +1305,6 @@
             mobile.innerHTML = '';
             
             links.forEach(link => {
-                // تم تصحيح الخطأ: استخدام navigate بدلاً من Maps
                 const action = link.auth ? `checkAccessAndNavigate('${link.id}')` : `Maps('${link.id}')`; 
                 const btn = `<button onclick="${action}" data-section="${link.id}" class="px-4 py-2 rounded-full text-sm font-medium text-gray-700 hover:text-blue-600 transition">${link.name}</button>`;
                 desktop.innerHTML += btn;
@@ -1144,42 +1312,6 @@
             });
             lucide.createIcons();
         }
-        
-        // دالة لعرض بطاقات الدورات في الصفحة الرئيسية وقائمة الدورات
-        function renderDynamicContent() {
-            const courses = getCourses();
-            const homeContainer = document.getElementById('home-curriculums-cards');
-            const coursesContainer = document.getElementById('courses-list-container');
-            
-            if (homeContainer) {
-                homeContainer.innerHTML = courses.slice(0, 3).map(c => `
-                    <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition border-t-4 border-blue-500 cursor-pointer" onclick="checkAccessAndNavigate('course-details', ${c.id})">
-                        <i data-lucide="${c.icon}" class="w-8 h-8 text-blue-600 mb-3"></i>
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">${c.title}</h3>
-                        <p class="text-sm text-gray-600">${c.description}</p>
-                        <span class="mt-3 inline-block bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full">${c.target}</span>
-                    </div>
-                `).join('');
-            }
-            
-            if (coursesContainer) {
-                coursesContainer.innerHTML = courses.map(c => `
-                    <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500 flex justify-between items-center">
-                        <div>
-                            <h3 class="text-2xl font-bold text-gray-800 mb-1">${c.title}</h3>
-                            <p class="text-gray-600">${c.description}</p>
-                            <span class="mt-2 inline-block bg-emerald-100 text-emerald-800 text-sm px-3 py-1 rounded-full">${c.target}</span>
-                        </div>
-                        <button onclick="checkAccessAndNavigate('course-details', ${c.id})" class="bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 font-medium whitespace-nowrap">
-                            عرض التفاصيل
-                        </button>
-                    </div>
-                `).join('');
-            }
-            
-            lucide.createIcons();
-        }
-
     </script>
 </body>
 </html>

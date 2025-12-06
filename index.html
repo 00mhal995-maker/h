@@ -364,23 +364,43 @@
             };
             courses.push(newCourse);
             saveCourses(courses);
-            alert('تم إضافة الدورة بنجاح!');
+            // تم استبدال alert() بنافذة منبثقة بسيطة
+            showMessageModal('تم إضافة الدورة بنجاح!');
         }
 
         // دالة لحذف دورة (وحذف جميع دروسها المرتبطة)
         function deleteCourse(id) {
-            if(confirm('هل أنت متأكد من حذف هذه الدورة وكل دروسها؟')) {
-                const courses = getCourses();
-                const lessons = getLessons();
-                
-                // 1. حذف الدورة
-                const updatedCourses = courses.filter(c => c.id !== id);
-                saveCourses(updatedCourses);
+            // استبدال confirm() بنافذة منبثقة بسيطة
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal" style="display:flex;">
+                    <div class="modal-content text-center">
+                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد الحذف</h3>
+                        <p class="mb-6">هل أنت متأكد من حذف هذه الدورة وكل دروسها؟</p>
+                        <div class="flex justify-around">
+                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
+                            <button onclick="performDeleteCourse(${id}); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">تأكيد الحذف</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function performDeleteCourse(id) {
+            const courses = getCourses();
+            const lessons = getLessons();
+            
+            // 1. حذف الدورة
+            const updatedCourses = courses.filter(c => c.id !== id);
+            saveCourses(updatedCourses);
 
-                // 2. حذف الدروس المرتبطة
-                const updatedLessons = lessons.filter(l => l.courseId !== id);
-                saveLessons(updatedLessons); 
-            }
+            // 2. حذف الدروس المرتبطة
+            const updatedLessons = lessons.filter(l => l.courseId !== id);
+            saveLessons(updatedLessons);
+            
+            showMessageModal('تم حذف الدورة بنجاح!');
+            renderAdminCourses();
         }
 
         // دالة لإضافة درس جديد (جديد)
@@ -394,7 +414,7 @@
             if (match && match[1]) {
                 embedId = match[1];
             } else {
-                alert('الرابط غير صالح. يرجى إدخال رابط فيديو YouTube صحيح.');
+                showMessageModal('الرابط غير صالح. يرجى إدخال رابط فيديو YouTube صحيح.', 'error');
                 return false;
             }
 
@@ -409,44 +429,108 @@
             };
             lessons.push(newLesson);
             saveLessons(lessons);
+            showMessageModal('تم إضافة الدرس بنجاح!');
             return true;
         }
 
         // دالة لحذف درس (جديد)
         function deleteLesson(lessonId, courseId) {
-            if(confirm('هل أنت متأكد من حذف هذا الدرس؟')) {
-                const lessons = getLessons();
-                const updatedLessons = lessons.filter(l => l.id !== lessonId);
-                saveLessons(updatedLessons);
+            // استبدال confirm() بنافذة منبثقة بسيطة
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal" style="display:flex;">
+                    <div class="modal-content text-center">
+                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد الحذف</h3>
+                        <p class="mb-6">هل أنت متأكد من حذف هذا الدرس؟</p>
+                        <div class="flex justify-around">
+                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
+                            <button onclick="performDeleteLesson(${lessonId}, ${courseId}); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">تأكيد الحذف</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function performDeleteLesson(lessonId, courseId) {
+            const lessons = getLessons();
+            const updatedLessons = lessons.filter(l => l.id !== lessonId);
+            saveLessons(updatedLessons);
 
-                // إزالة من الدروس المكتملة لجميع المستخدمين (تبسيطاً)
-                const user = getUserStatus();
-                if (user.isAuthenticated) {
-                    const completed = getCompletedLessons().filter(id => id !== lessonId);
-                    saveCompletedLessons(completed);
-                }
+            // إزالة من الدروس المكتملة لجميع المستخدمين (تبسيطاً)
+            const user = getUserStatus();
+            if (user.isAuthenticated) {
+                const completed = getCompletedLessons().filter(id => id !== lessonId);
+                saveCompletedLessons(completed);
+            }
 
-                // إعادة رسم واجهة الدروس
-                renderAdminLessons(courseId); 
+            // إعادة رسم واجهة الدروس
+            showMessageModal('تم حذف الدرس بنجاح!');
+            renderAdminLessons(courseId); 
+        }
+        
+        // دالة لعرض رسالة مخصصة بدلاً من alert() أو confirm()
+        function showMessageModal(message, type = 'success') {
+            const color = type === 'error' ? 'red' : (type === 'success' ? 'emerald' : 'blue');
+            const icon = type === 'error' ? 'x-circle' : (type === 'success' ? 'check-circle' : 'info');
+            
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal" style="display:flex;">
+                    <div class="modal-content text-center space-y-4">
+                        <i data-lucide="${icon}" class="w-10 h-10 text-${color}-500 mx-auto"></i>
+                        <h3 class="text-xl font-bold text-gray-800">${message}</h3>
+                        <button onclick="document.querySelector('.modal').remove()" class="bg-${color}-600 text-white py-2 px-6 rounded-full hover:bg-${color}-700">حسناً</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            lucide.createIcons();
+            // إزالة النافذة تلقائياً بعد 4 ثوانٍ (للرسائل غير الحرجة)
+            if(type !== 'error') {
+                 setTimeout(() => {
+                    const currentModal = document.querySelector('.modal');
+                    if(currentModal && currentModal.contains(modal)) {
+                        modal.remove();
+                    }
+                }, 4000);
             }
         }
+
 
         // استعادة البيانات الأصلية (زر الطوارئ)
         function resetSystemData() {
-            if(confirm('سيتم حذف جميع الدورات والدروس المضافة وبيانات المستخدم (التسجيل والاختبار) والعودة للوضع الافتراضي. هل توافق؟')) {
-                // استخدام clear() قد يكون مشكلة، لذا نستخدم removeItem
-                localStorage.removeItem('myAppCourses');
-                localStorage.removeItem('myAppLessons'); 
-                localStorage.removeItem(AUTH_KEY);
-                // حذف كل بيانات اكمال الدروس (يفضل مسحها بشكل فردي لكن clear أسرع للمحاكاة)
-                for (let key in localStorage) {
-                    if (key.startsWith(COMPLETED_LESSONS_KEY)) {
-                        localStorage.removeItem(key);
-                    }
-                }
-                location.reload();
-            }
+            // استخدام نافذة تأكيد مخصصة
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal" style="display:flex;">
+                    <div class="modal-content text-center">
+                        <h3 class="text-xl font-bold text-red-600 mb-4">تأكيد استعادة المصنع</h3>
+                        <p class="mb-6">سيتم حذف جميع البيانات المضافة (دورات، دروس، تسجيلات المستخدمين). هل أنت متأكد؟</p>
+                        <div class="flex justify-around">
+                            <button onclick="document.querySelector('.modal').remove()" class="bg-gray-300 text-gray-800 py-2 px-6 rounded-full hover:bg-gray-400">إلغاء</button>
+                            <button onclick="performResetSystemData(); document.querySelector('.modal').remove();" class="bg-red-600 text-white py-2 px-6 rounded-full hover:bg-red-700">نعم، استعادة البيانات</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
+        
+        function performResetSystemData() {
+            // استخدام clear() قد يكون مشكلة، لذا نستخدم removeItem
+            localStorage.removeItem('myAppCourses');
+            localStorage.removeItem('myAppLessons'); 
+            localStorage.removeItem(AUTH_KEY);
+            // حذف كل بيانات اكمال الدروس (يفضل مسحها بشكل فردي لكن clear أسرع للمحاكاة)
+            for (let key in localStorage) {
+                if (key.startsWith(COMPLETED_LESSONS_KEY)) {
+                    localStorage.removeItem(key);
+                }
+            }
+            location.reload();
+        }
+
 
         // ==========================================
         // 5. AUTHENTICATION & AUTHORIZATION 
@@ -579,10 +663,10 @@
             closeAuthModal();
             
             if (!newUser.isTestCompleted) {
-                alert(`أهلاً ${name}! تم تسجيل دخولك بنجاح. الآن سيتم توجيهك إلى اختبار تحديد المستوى.`);
+                showMessageModal(`أهلاً ${name}! تم تسجيل دخولك بنجاح. الآن سيتم توجيهك إلى اختبار تحديد المستوى.`);
                 navigate('placement');
             } else {
-                alert(`مرحباً بك ${name} مجدداً! يمكنك الآن تصفح الدورات.`);
+                showMessageModal(`مرحباً بك ${name} مجدداً! يمكنك الآن تصفح الدورات.`);
                 navigate('courses');
             }
         }
@@ -596,14 +680,14 @@
             }
 
             if (user.isTestCompleted) {
-                alert('لقد أكملت الاختبار مسبقاً!');
+                showMessageModal('لقد أكملت الاختبار مسبقاً!');
                 return;
             }
             
             const updatedUser = { ...user, isTestCompleted: true };
             saveUserStatus(updatedUser);
             
-            alert(`تهانينا، ${user.name}! لقد أكملت اختبار تحديد المستوى بنجاح. يمكنك الآن الوصول إلى جميع الدورات.`);
+            showMessageModal(`تهانينا، ${user.name}! لقد أكملت اختبار تحديد المستوى بنجاح. يمكنك الآن الوصول إلى جميع الدورات.`);
             navigate('courses');
         }
 
@@ -617,7 +701,7 @@
             const currentLesson = lessons.find(l => l.id === lessonId);
             
             if (!currentLesson) {
-                alert("عفواً، لم يتم العثور على هذا الدرس.");
+                showMessageModal("عفواً، لم يتم العثور على هذا الدرس.", 'error');
                 return;
             }
             
@@ -680,12 +764,12 @@
             if (!completedLessons.includes(lessonId)) {
                 completedLessons.push(lessonId);
                 saveCompletedLessons(completedLessons);
-                alert('تم تحديد الدرس كمكتمل بنجاح!');
+                showMessageModal('تم تحديد الدرس كمكتمل بنجاح!');
             } else {
                 // Remove completion status (toggle)
                 completedLessons = completedLessons.filter(id => id !== lessonId);
                 saveCompletedLessons(completedLessons);
-                alert('تم إزالة علامة الإكمال من الدرس.');
+                showMessageModal('تم إزالة علامة الإكمال من الدرس.');
             }
             
             // Re-render status and sidebar
@@ -723,6 +807,7 @@
         function renderCourseDetails(courseId) {
             const course = getCourses().find(c => c.id === courseId);
             const lessons = getLessons().filter(l => l.courseId === courseId);
+            const completedLessons = getCompletedLessons(); // لتمييز الدروس المكتملة
             const contentContainer = document.getElementById('course-details-content');
 
             // 1. الانتقال إلى صفحة التفاصيل
@@ -734,18 +819,24 @@
             }
 
             // 2. بناء قائمة الدروس
-            const lessonsListHtml = lessons.map(l => `
-                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100 flex items-center mb-4 transition-transform hover:scale-[1.01]">
-                    <img src="${l.thumbnailUrl}" onerror="this.onerror=null; this.src='https://placehold.co/100x50/cccccc/000000?text=Video';" class="w-24 h-14 object-cover rounded ml-4 flex-shrink-0" alt="صورة الدرس">
-                    <div class="flex-grow">
-                        <h4 class="font-bold text-lg text-gray-800">${l.title}</h4>
-                        <p class="text-sm text-gray-500">فيديو: ${l.duration}</p>
+            const lessonsListHtml = lessons.map(l => {
+                const isCompleted = completedLessons.includes(l.id);
+                return `
+                    <div class="bg-white p-4 rounded-xl shadow-md border ${isCompleted ? 'border-emerald-300' : 'border-gray-100'} flex items-center mb-4 transition-transform hover:scale-[1.01]">
+                        <img src="${l.thumbnailUrl}" onerror="this.onerror=null; this.src='https://placehold.co/100x50/cccccc/000000?text=Video';" class="w-24 h-14 object-cover rounded ml-4 flex-shrink-0" alt="صورة الدرس">
+                        <div class="flex-grow">
+                            <h4 class="font-bold text-lg text-gray-800">${l.title}</h4>
+                            <p class="text-sm text-gray-500">فيديو: ${l.duration}</p>
+                        </div>
+                        <div class="flex items-center">
+                            ${isCompleted ? '<i data-lucide="check-circle" class="w-6 h-6 text-emerald-500 ml-3"></i>' : ''}
+                            <button onclick="checkAccessAndNavigate('lesson-player', ${course.id}, ${l.id})" class="bg-emerald-500 text-white px-4 py-2 rounded-full font-medium hover:bg-emerald-600 flex items-center ml-2">
+                                <i data-lucide="play" class="w-4 h-4 ml-1"></i> مشاهدة
+                            </button>
+                        </div>
                     </div>
-                    <button onclick="checkAccessAndNavigate('lesson-player', ${course.id}, ${l.id})" class="bg-emerald-500 text-white px-4 py-2 rounded-full font-medium hover:bg-emerald-600 flex items-center ml-2">
-                        <i data-lucide="play" class="w-4 h-4 ml-1"></i> مشاهدة
-                    </button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             // 3. بناء هيكل الصفحة
             contentContainer.innerHTML = `
@@ -1035,7 +1126,7 @@
             { name: "الرئيسية", id: "home" },
             { name: "الدورات", id: "courses", auth: true }, 
             { name: "اختبار المستوى", id: "placement" },
-            { name: "لوحة التحكم", id: "admin" },
+            { name: "لوحة التحكم", id: "admin", auth: true }, // تم إضافة auth: true لحماية لوحة التحكم
         ];
 
         function setupNavigation() {
@@ -1045,11 +1136,47 @@
             mobile.innerHTML = '';
             
             links.forEach(link => {
-                const action = link.auth ? `checkAccessAndNavigate('${link.id}')` : `Maps('${link.id}')`; // الإصلاح: تم استخدام navigate بشكل صحيح هنا
+                // تم تصحيح الخطأ: استخدام navigate بدلاً من Maps
+                const action = link.auth ? `checkAccessAndNavigate('${link.id}')` : `Maps('${link.id}')`; 
                 const btn = `<button onclick="${action}" data-section="${link.id}" class="px-4 py-2 rounded-full text-sm font-medium text-gray-700 hover:text-blue-600 transition">${link.name}</button>`;
                 desktop.innerHTML += btn;
                 mobile.innerHTML += `<div class="w-full text-center py-2">${btn}</div>`;
             });
+            lucide.createIcons();
+        }
+        
+        // دالة لعرض بطاقات الدورات في الصفحة الرئيسية وقائمة الدورات
+        function renderDynamicContent() {
+            const courses = getCourses();
+            const homeContainer = document.getElementById('home-curriculums-cards');
+            const coursesContainer = document.getElementById('courses-list-container');
+            
+            if (homeContainer) {
+                homeContainer.innerHTML = courses.slice(0, 3).map(c => `
+                    <div class="bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition border-t-4 border-blue-500 cursor-pointer" onclick="checkAccessAndNavigate('course-details', ${c.id})">
+                        <i data-lucide="${c.icon}" class="w-8 h-8 text-blue-600 mb-3"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">${c.title}</h3>
+                        <p class="text-sm text-gray-600">${c.description}</p>
+                        <span class="mt-3 inline-block bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full">${c.target}</span>
+                    </div>
+                `).join('');
+            }
+            
+            if (coursesContainer) {
+                coursesContainer.innerHTML = courses.map(c => `
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-1">${c.title}</h3>
+                            <p class="text-gray-600">${c.description}</p>
+                            <span class="mt-2 inline-block bg-emerald-100 text-emerald-800 text-sm px-3 py-1 rounded-full">${c.target}</span>
+                        </div>
+                        <button onclick="checkAccessAndNavigate('course-details', ${c.id})" class="bg-blue-600 text-white py-2 px-6 rounded-full hover:bg-blue-700 font-medium whitespace-nowrap">
+                            عرض التفاصيل
+                        </button>
+                    </div>
+                `).join('');
+            }
+            
             lucide.createIcons();
         }
 

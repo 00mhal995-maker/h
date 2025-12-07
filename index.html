@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <!-- إعدادات العرض للجوال لمنع التكبير والتصغير العشوائي -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title id="page-title">جار تحميل الاختبار...</title>
+    
+    <!-- Firebase Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, getDoc, getDocs, query, orderBy, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- المتغيرات العامة (نفس المنطق الأصلي) ---
+        window.db = null;
+        window.auth = null;
+        window.userId = null;
+        window.studentName = '';
+        window.deviceId = null; 
+        window.quizData = {}; 
+        window.questions = []; 
+        let quizSubmitted = false;
+        let cheatingDetected = false;
+        
+        // --- تهيئة Firebase ---
+        async function initializeFirebase() {
+            const firebaseConfig = {
+                apiKey: "AIzaSyCqDJvWVMz2blT9P4vrEQQ5CpFAZZBS9Eo",
+                authDomain: "classwithonline.firebaseapp.com",
+                databaseURL: "https://classwithonline-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "classwithonline",
+                storageBucket: "classwithonline.firebasestorage.app",
+                messagingSenderId: "253846485060",
+                appId: "1:253846485060:web:50287705cd9be34ca0e411",
+                measurementId: "G-M9XFLBQZFL"
+            };
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
+            try {
+                const app = initializeApp(firebaseConfig);
+                window.auth = getAuth(app);
+                window.db = getFirestore(app);
+
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(window.auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(window.auth);
+                }
+
+                window.userId = window.auth.currentUser?.uid || crypto.randomUUID();
+                window.deviceId = crypto.randomUUID(); 
+                return true;
+            } catch (error) {
+                console.error("Firebase init error:", error);
+                document.getElementById('access-error').textContent = 'فشل الاتصال. تأكد من الإنترنت.';
+                document.getElementById('access-error').style.display = 'block';
+                return false;
+            }
+        }
+        
+        // --- تحميل البيانات ---
+        async function loadQuizData() {
+            if (!window.db) return false;
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const configDocRef = doc(window.db, `artifacts/${appId}/public/data/quiz_config/settings`);
+                const qCollectionRef = collection(window.db, `artifacts/${appId}/public/data/quiz_questions`);
+                
+                const configSnap = await getDoc(configDocRef);
+                
+                if (!configSnap.exists()) {
+                    await initializeDefaultSettings(configDocRef, qCollectionRef);
+                    const newConfigSnap = await getDoc(configDocRef);
+                    window.quizData = newConfigSnap.data();
+                } else {
+                    window.quizData = configSnap.data();
+                }
+                
+                // تحميل الأسئلة وترتيبها
+                const qQuery = query(qCollectionRef, orderBy("Q_ID"));
+                const qSnap = await getDocs(qQuery);
+                window.questions = qSnap.docs.map(doc => ({...doc.data(), firestoreId: doc.id}));
+                
+                renderQuiz();
+                return true;
+            } catch (error) {
+                console.error("Load Data Error:", error);
+                return false;
+            }
+        }
+
+        // --- عرض الاختبار (تم تعديل هذه الدالة لتوليد HTML بتصميم الجوال) ---
+        function renderQuiz() {
+            // تحديث العناوين
+            const titleText = window.quizData.title || 'اختبار STEP سماعي';
+            document.getElementById('quiz-title').textContent = titleText;
+            document.getElementById('page-title').textContent = titleText;
+
+            // تحديث الصوت
+            const audioEl = document.getElementById('quiz-audio');
+            audioEl.src = window.quizData.audioUrl || '';
+            audioEl.load(); 
+            
+            // توليد الأسئلة بتصميم "البطاقات"
+            const questionsContainer = document.getElementById('questions-container');
+            questionsContainer.innerHTML = '';
+            
+            window.questions.forEach((q, index) => {
+                const block = document.createElement('div');
+                block.className = 'question-block';
+                
+                // رأس السؤال
+                let html = `
+                    <div class="question-header">
+                        <span class="q-num">${q.Q_ID}</span>
+                        <h3>${q.questionText || 'السؤال غير متوفر'}</h3>
+                    </div>
+                `;
+                
+                // الخيارات
+                if (Array.isArray(q.options)) {
+                    html += `<div class="options-grid">`;
+                    q.options.forEach((opt, optIndex) => {
+                        const optionLetter = String.fromCharCode(65 + optIndex); // A, B, C...
+                        html += `
+                            <label class="option-label">
+                                <input type="radio" name="q${q.Q_ID}" value="${optionLetter}"> 
+                                <span class="opt-content">
+                                    <span class="opt-letter">${optionLetter})</span> 
+                                    <span class="opt-text">${opt.text || ''}</span>
+                                </span>
+                            </label>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+            
+                block.innerHTML = html;
+                questionsContainer.appendChild(block);
+            });
+
+            // إضافة تفاعل عند اختيار إجابة (تغيير لون البطاقة)
+            document.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const name = this.name;
+                    document.querySelectorAll(`input[name="${name}"]`).forEach(el => {
+                        el.closest('.option-label').classList.remove('selected');
+                    });
+                    this.closest('.option-label').classList.add('selected');
+                });
+            });
+        }
+        
+        // --- إعدادات افتراضية (نفس الكود الأصلي: 10 أسئلة) ---
+        async function initializeDefaultSettings(configDocRef, qCollectionRef) {
+            await setDoc(configDocRef, {
+                title: 'اختبار STEP سماعي تجريبي - 10 فقرات (C1/C2)',
+                studentAccessKey: '1234',
+                audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+                lastUpdated: new Date().toISOString()
+            });
+
+            for (let i = 1; i <= 10; i++) {
+                await addDoc(qCollectionRef, {
+                    Q_ID: i,
+                    questionText: `السؤال ${i}: اختر الإجابة الصحيحة؟`,
+                    options: [
+                        { text: "الخيار أ - غير صحيح" },
+                        { text: "الخيار ب - الإجابة الصحيحة" },
+                        { text: "الخيار ج - غير صحيح" },
+                        { text: "الخيار د - غير صحيح" }
+                    ],
+                    correctAnswer: 'B'
+                }); 
+            }
+        }
+
+        // --- الدخول والتحقق ---
+        window.checkAccess = async function() {
+            const nameInput = document.getElementById('student-name');
+            const errorMsg = document.getElementById('access-error');
+            const btn = document.getElementById('login-btn');
+            
+            // 1. التحقق من الاسم
+            const inputName = nameInput.value.trim();
+            if (!inputName) {
+                errorMsg.textContent = 'الرجاء كتابة اسمك الثلاثي.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+            
+            // UI Loading
+            btn.disabled = true;
+            btn.textContent = 'جارِ التحقق...';
+            errorMsg.style.display = 'none';
+            
+            // 2. الاتصال بالقاعدة
+            const isFirebaseReady = await initializeFirebase();
+            if (!isFirebaseReady) {
+                btn.disabled = false;
+                btn.textContent = 'دخول الاختبار';
+                return; 
+            }
+
+            const isDataLoaded = await loadQuizData();
+            if (!isDataLoaded) {
+                errorMsg.textContent = 'خطأ في تحميل البيانات.';
+                btn.disabled = false;
+                btn.textContent = 'دخول الاختبار';
+                return;
+            }
+            
+            // 3. التحقق من الرمز
+            const inputKey = document.getElementById('access-key').value.trim();
+            const requiredKey = window.quizData.studentAccessKey || '1234';
+            
+            if (inputKey !== requiredKey) {
+                errorMsg.textContent = 'الرمز السري غير صحيح!';
+                errorMsg.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'دخول الاختبار';
+                return;
+            }
+
+            // 4. نجاح الدخول
+            window.studentName = inputName;
+            localStorage.setItem('studentName', inputName);
+            document.getElementById('final-student-name').textContent = inputName;
+
+            document.getElementById('access-modal').style.display = 'none';
+            document.getElementById('quiz-content').style.display = 'block';
+            
+            // تفعيل الحماية
+            activateLockdown();
+            listenForRemoteKill();
+        }
+        
+        // --- الاستماع لأمر الإنهاء عن بعد ---
+        function listenForRemoteKill() {
+            if (!window.db || !window.userId) return;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const killDocRef = doc(window.db, `artifacts/${appId}/public/data/live_control/${window.userId}`);
+
+            onSnapshot(killDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const controlData = docSnap.data();
+                    if (controlData.isLocked && !quizSubmitted) {
+                        showLockdownMsg('تم إنهاء الاختبار بواسطة المعلم.', true);
+                        cheatingDetected = true; 
+                    }
+                }
+            });
+        }
+        
+        // --- التسليم ---
+        window.submitQuiz = async function(event) {
+            event.preventDefault(); 
+            const submitBtn = document.getElementById('submit-button');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'جاري التسليم...';
+
+            const quizForm = document.getElementById('step-quiz');
+            const answers = {};
+            let answeredCount = 0;
+
+            window.questions.forEach((q) => {
+                const qName = 'q' + q.Q_ID;
+                const selected = quizForm.elements[qName]?.value;
+                if (selected) {
+                    answers[qName] = selected;
+                    answeredCount++;
+                }
+            });
+            
+            const submissionData = {
+                student_name: window.studentName,
+                user_id: window.userId,
+                device_id: window.deviceId,
+                timestamp: new Date().toISOString(),
+                answers: answers,
+                answered_count: answeredCount,
+                cheating_attempt_detected: cheatingDetected,
+                user_agent: navigator.userAgent,
+                quiz_config_at_submission: {
+                    title: window.quizData.title,
+                    audioUrl: window.quizData.audioUrl
+                }
+            };
+
+            if (window.db) {
+                try {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    // استخدام المسار العام (Public) كما في الكود الأصلي
+                    await addDoc(collection(window.db, `artifacts/${appId}/public/data/quiz_submissions`), submissionData);
+                } catch (e) {
+                    console.error("Save error:", e);
+                }
+            }
+
+            quizSubmitted = true;
+            submitBtn.style.display = 'none';
+            
+            const completionMessage = document.getElementById('thank-you');
+            completionMessage.innerHTML = `
+                <div class="success-icon">✓</div>
+                <h3>تم استلام إجاباتك بنجاح</h3>
+                <p>شكراً لك يا ${window.studentName}</p>
+                <p>تم تسجيل ${answeredCount} إجابة من أصل ${window.questions.length}</p>
+            `;
+            completionMessage.style.display = 'block';
+
+            document.querySelectorAll('input').forEach(i => i.disabled = true);
+            document.getElementById('lockdown-message').style.display = 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // --- نظام الحماية وقفل الشاشة ---
+        function showLockdownMsg(msg, allowSubmit = false) {
+            const el = document.getElementById('lockdown-message');
+            el.style.display = 'flex';
+            el.innerHTML = `
+                <div class="lock-icon">⚠️</div>
+                <h2>تنبيه أمني</h2>
+                <p>${msg}</p>
+                ${allowSubmit ? '<button type="button" onclick="document.getElementById(\'submit-button\').click()" class="emergency-submit">تسليم الإجابات وإنهاء الاختبار</button>' : ''}
+            `;
+            
+            if (allowSubmit) {
+                document.querySelectorAll('#quiz-content input').forEach(i => i.disabled = true);
+                const submitBtn = document.getElementById('submit-button');
+                submitBtn.disabled = false;
+            }
+        }
+
+        function handleCheatingAttempt(violationType) {
+            if (quizSubmitted || cheatingDetected) return;
+            
+            cheatingDetected = true;
+            let msg = 'تم اكتشاف محاولة غش.';
+            
+            switch (violationType) {
+                case 'BLUR': msg = 'ممنوع الخروج من التطبيق أو التبديل بين النوافذ.'; break;
+                case 'COPY': msg = 'النسخ غير مسموح.'; break;
+                case 'PRINT': msg = 'محاولة طباعة الشاشة ممنوعة.'; break;
+                case 'F12': msg = 'ممنوع استخدام أدوات المطور.'; break;
+            }
+            
+            showLockdownMsg(msg, true);
+        }
+
+        function activateLockdown() {
+            // 1. منع القائمة المنبثقة
+            document.addEventListener('contextmenu', e => { e.preventDefault(); handleCheatingAttempt('COPY'); });
+            
+            // 2. منع تحديد النص
+            document.body.style.userSelect = 'none';
+            document.body.style.webkitUserSelect = 'none';
+            
+            // 3. منع النسخ
+            document.body.addEventListener('copy', e => { e.preventDefault(); handleCheatingAttempt('COPY'); });
+
+            // 4. كشف مغادرة الصفحة (محدث للجوال)
+            // نستخدم visibilitychange لأنه أدق للجوال من blur
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden && !quizSubmitted) {
+                     handleCheatingAttempt('BLUR');
+                }
+            });
+            
+            // 5. منع الرجوع بالخطأ
+            window.history.pushState(null, null, window.location.href);
+            window.onpopstate = function () {
+                window.history.go(1);
+            };
+
+            // 6. مفاتيح سطح المكتب (لزيادة الأمان)
+            document.addEventListener('keydown', e => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); handleCheatingAttempt('PRINT'); }
+                if (e.key === 'F12') { e.preventDefault(); handleCheatingAttempt('F12'); }
+            });
+            
+            // تحذير عند الإغلاق
+            window.addEventListener('beforeunload', function (e) {
+                if (!quizSubmitted) {
+                    e.returnValue = 'لم تقم بتسليم الاختبار بعد!';
+                    return 'لم تقم بتسليم الاختبار بعد!';
+                }
+            });
+        }
+    </script>
+
+    <style>
+        :root {
+            --primary-color: #00897b; /* Teal */
+            --primary-dark: #00695c;
+            --bg-color: #f0f4f8;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-light: #546e7a;
+            --danger: #e74c3c;
+            --success: #27ae60;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            color: var(--text-main);
+            line-height: 1.6;
+            padding-bottom: 60px; /* مساحة للتمرير في الأسفل */
+        }
+
+        /* --- نافذة الدخول (Modal) --- */
+        .modal {
+            display: flex;
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            backdrop-filter: blur(5px);
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 30px 25px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+            border-top: 5px solid var(--primary-color);
+        }
+
+        .modal-content h2 { margin-top: 0; color: var(--primary-dark); }
+
+        .modal-content input {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px; /* حجم 16 يمنع الزووم في الآيفون */
+            text-align: center;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .modal-content input:focus { border-color: var(--primary-color); }
+
+        .modal-content button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 15px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 137, 123, 0.3);
+        }
+
+        /* --- المحتوى الرئيسي --- */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            background-color: var(--card-bg);
+            margin: 0 0 20px 0;
+            padding: 20px;
+            font-size: 1.5rem;
+            color: var(--primary-dark);
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+
+        /* --- البطاقات العامة --- */
+        .audio-section, .instructions {
+            background-color: var(--card-bg);
+            margin: 15px;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        }
+
+        audio {
+            width: 100%;
+            height: 45px;
+            border-radius: 25px;
+            margin-top: 10px;
+        }
+
+        .instructions ul {
+            padding-right: 20px;
+            margin: 10px 0 0 0;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        /* --- الأسئلة (التصميم الجديد) --- */
+        #questions-container { padding: 0 10px; }
+
+        .question-block {
+            background-color: var(--card-bg);
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+
+        .question-header {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .q-num {
+            background-color: #e0f2f1;
+            color: var(--primary-dark);
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-left: 15px;
+            flex-shrink: 0;
+        }
+
+        .question-block h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        /* --- الخيارات (نمط البطاقات) --- */
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background-color: #fafafa;
+            position: relative;
+        }
+
+        /* عند الاختيار */
+        .option-label.selected {
+            border-color: var(--primary-color);
+            background-color: #e0f2f1;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 137, 123, 0.15);
+        }
+
+        .option-label input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .opt-content {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .opt-letter {
+            font-weight: 800;
+            color: var(--primary-color);
+            background: white;
+            padding: 5px 10px;
+            border-radius: 8px;
+            margin-left: 12px;
+            font-size: 0.9rem;
+            border: 1px solid #eee;
+        }
+        
+        .option-label.selected .opt-letter {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .opt-text {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        /* --- زر التسليم --- */
+        .submit-btn {
+            display: block;
+            width: calc(100% - 30px);
+            margin: 30px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            box-shadow: 0 8px 20px rgba(0, 137, 123, 0.3);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .submit-btn:active { transform: scale(0.98); }
+
+        /* --- رسائل النجاح والخطأ --- */
+        .thank-you-message {
+            display: none;
+            text-align: center;
+            padding: 50px 20px;
+            background: white;
+            margin: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+        .success-icon {
+            width: 80px; height: 80px;
+            background-color: #e8f5e9;
+            color: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 20px auto;
+        }
+
+        .error-message {
+            color: var(--danger);
+            margin-top: 15px;
+            display: none;
+            font-weight: bold;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        /* --- قفل الشاشة (Lockdown) --- */
+        #lockdown-message {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(198, 40, 40, 0.96);
+            color: white;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            text-align: center;
+            padding: 30px;
+        }
+        .lock-icon { font-size: 70px; margin-bottom: 20px; }
+        .emergency-submit {
+            background-color: white;
+            color: var(--danger);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-top: 25px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* --- Media Queries للشاشات الأكبر --- */
+        @media (min-width: 768px) {
+            .container { margin-top: 40px; }
+            h1 { border-radius: 16px; margin: 0 0 30px 0; }
+            .options-grid { display: grid; grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- نافذة الدخول (Modal) -->
+<div id="access-modal" class="modal">
+    <div class="modal-content">
+        <h2>🔒 تسجيل الدخول</h2>
+        <p style="color: #666;">يرجى إدخال بياناتك لبدء الاختبار</p>
+        
+        <input type="text" id="student-name" placeholder="اسم الطالب الثلاثي" autocomplete="off">
+        <input type="password" id="access-key" placeholder="الرمز السري" inputmode="numeric">
+        
+        <p id="access-error" class="error-message"></p>
+        <button onclick="checkAccess()" id="login-btn">دخول الاختبار</button>
+    </div>
+</div>
+
+<!-- رسالة القفل (Lockdown) -->
+<div id="lockdown-message"></div>
+
+<!-- محتوى الاختبار -->
+<div class="container" id="quiz-content" style="display: none;">
+    <h1 id="quiz-title">جار التحميل...</h1>
+
+    <div class="audio-section">
+        <h3 style="color: var(--primary-dark); margin-top:0;">🎧 المقطع الصوتي</h3>
+        <audio controls id="quiz-audio" controlsList="nodownload">
+            <p>متصفحك لا يدعم تشغيل الصوت.</p>
+        </audio>
+    </div>
+
+    <div class="instructions">
+        <h3 style="margin-top:0; color: #d35400;">⚠️ تعليمات هامة:</h3>
+        <ul>
+            <li>أجب على جميع الأسئلة.</li>
+            <li><strong>تحذير:</strong> الخروج من المتصفح أو التبديل لتطبيق آخر سيؤدي لقفل الاختبار فوراً.</li>
+            <li>عند الانتهاء اضغط زر التسليم بالأسفل.</li>
+        </ul>
+    </div>
+
+    <form id="step-quiz" onsubmit="submitQuiz(event)">
+        <div id="questions-container">
+            <!-- سيتم توليد الأسئلة هنا تلقائياً -->
+            <p style="text-align: center; color: #999; padding: 20px;">جاري جلب الأسئلة...</p>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submit-button">تسليم الاختبار</button>
+    </form>
+    
+    <!-- رسالة النهاية -->
+    <div class="thank-you-message" id="thank-you"></div>
+    
+    <!-- اسم الطالب مخفي للاستخدام -->
+    <span id="final-student-name" style="display:none;"></span>
+</div>
+
+</body>
+</html>
+

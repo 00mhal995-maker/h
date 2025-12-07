@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الاختبار</title>
+    <!-- Firebase Imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, getDoc, getDocs, query, orderBy, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { onSnapshot, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables
+        window.db = null;
+        let quizQuestions = [];
+        let quizConfig = {};
+        let allSubmissions = []; // New array to hold all submissions
+        let activeUsers = {}; // Stores {userId: {isLocked: bool, lastPing: string}}
+
+        // --- Firebase Initialization and Authentication ---
+        async function initializeFirebase() {
+            // IMPORTANT: In a real environment, __firebase_config and __initial_auth_token are provided.
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+                apiKey: "AIzaSyCqDJvWVMz2blT9P4vrEQQ5CpFAZZBS9Eo",
+                authDomain: "classwithonline.firebaseapp.com",
+                databaseURL: "https://classwithonline-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "classwithonline",
+                storageBucket: "classwithonline.firebasestorage.app",
+                messagingSenderId: "253846485060",
+                appId: "1:253846485060:web:50287705cd9be34ca0e411",
+                measurementId: "G-M9XFLBQZFL"
+            };
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                window.db = getFirestore(app);
+
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                console.log("Admin Firebase initialized and authenticated.");
+                return true;
+            } catch (error) {
+                console.error("Firebase initialization or authentication failed:", error);
+                document.getElementById('content-status').innerHTML = `<p style="color: red; text-align: center;">خطأ في الاتصال بالخدمة. ${error.message}</p>`;
+                return false;
+            }
+        }
+
+        // --- Data Loading and Listeners ---
+        window.loadData = async function() {
+            if (!window.db) return;
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const configDocRef = doc(window.db, `artifacts/${appId}/public/data/quiz_config/settings`);
+            const qCollectionRef = collection(window.db, `artifacts/${appId}/public/data/quiz_questions`);
+            const submissionsCollectionRef = collection(window.db, `artifacts/${appId}/public/data/quiz_submissions`);
+            const liveControlCollectionRef = collection(window.db, `artifacts/${appId}/public/data/live_control`);
+
+            // 1. Listen for Config Changes (Title, Audio URL, Transcripts, Student Key)
+            onSnapshot(configDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    quizConfig = docSnap.data();
+                    renderConfig();
+                } else {
+                    // Initialize a default config if none exists
+                    quizConfig = { title: '', studentAccessKey: '1234', audioUrl: '', transcript: '', translation: '' };
+                    renderConfig();
+                    console.warn("Quiz config not found, loading defaults.");
+                }
+            });
+
+            // 2. Listen for Questions Changes
+            onSnapshot(query(qCollectionRef, orderBy("Q_ID")), (snapshot) => {
+                quizQuestions = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
+                renderQuestions();
+            });
+
+            // 3. Listen for Live Control Changes (Who is active/locked?)
+            onSnapshot(liveControlCollectionRef, (snapshot) => {
+                activeUsers = {};
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    activeUsers[doc.id] = {
+                        isLocked: data.isLocked || false,
+                        lastPing: data.lastPing
+                    };
+                });
+                renderSubmissionsList(allSubmissions);
+            });
+
+
+            // 4. Listen for Submissions (Statistics & List)
+            onSnapshot(query(submissionsCollectionRef, orderBy("timestamp", "desc")), (snapshot) => {
+                allSubmissions = snapshot.docs.map(doc => doc.data());
+                renderStats(allSubmissions);
+                renderSubmissionsList(allSubmissions);
+            });
+        };
+
+        // --- Live Control Actions ---
+        window.toggleLockUser = async function(userId, currentLockStatus) {
+            if (!window.db) {
+                showError("قاعدة البيانات غير متصلة.");
+                return;
+            }
+            
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            // The live control document uses the student's User ID as its document ID
+            const killDocRef = doc(window.db, `artifacts/${appId}/public/data/live_control/${userId}`);
+
+            const newLockStatus = !currentLockStatus;
+            
+            try {
+                await setDoc(killDocRef, {
+                    isLocked: newLockStatus,
+                    adminActionTime: new Date().toISOString()
+                }, { merge: true });
+                showSuccess(`تم ${newLockStatus ? 'قفل' : 'فتح'} الاختبار للطالب ${userId.substring(0, 8)}... بنجاح!`);
+            } catch (error) {
+                showError("فشل في إرسال أمر القفل: " + error.message);
+            }
+        };
+
+        // --- Rendering Functions ---
+        function renderConfig() {
+            document.getElementById('quiz-title-input').value = quizConfig.title || '';
+            document.getElementById('student-key-input').value = quizConfig.studentAccessKey || '1234'; // Load student key
+            document.getElementById('audio-url-input').value = quizConfig.audioUrl || '';
+            document.getElementById('transcript-input').value = quizConfig.transcript || '';
+            document.getElementById('translation-input').value = quizConfig.translation || '';
+            document.getElementById('current-title').textContent = quizConfig.title || 'غير محدد';
+            document.getElementById('current-audio').innerHTML = quizConfig.audioUrl ? `<audio controls src="${quizConfig.audioUrl}"></audio>` : 'لا يوجد رابط صوتي';
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-list');
+            container.innerHTML = '';
+            
+            quizQuestions.forEach((q) => {
+                const block = document.createElement('div');
+                block.className = 'question-item';
+                
+                const optionsHtml = q.options.map((opt, i) =>
+                    `<li class="${String.fromCharCode(65 + i) === q.correctAnswer ? 'correct-option' : ''}">${String.fromCharCode(65 + i)}: ${opt.text}</li>`
+                ).join('');
+
+                block.innerHTML = `
+                    <h4>السؤال ${q.Q_ID}: ${q.questionText}</h4>
+                    <p><strong>الإجابة الصحيحة:</strong> ${q.correctAnswer}</p>
+                    <ul class="options-list">${optionsHtml}</ul>
+                    <div class="actions">
+                        <button onclick="editQuestion('${q.id}')" class="edit-btn">تعديل</button>
+                        <button onclick="deleteQuestion('${q.id}')" class="delete-btn">حذف</button>
+                    </div>
+                `;
+                container.appendChild(block);
+            });
+            document.getElementById('q-count').textContent = quizQuestions.length;
+        }
+        
+        function renderStats(submissions) {
+            const statsContainer = document.getElementById('stats-container');
+            const totalSubmissions = submissions.length;
+            
+            const uniqueStudents = new Set(submissions.map(s => s.student_name)).size;
+            // Calculate cheating rate based on submissions where cheating_attempt_detected is true
+            const submissionsWithCheating = submissions.filter(s => s.cheating_attempt_detected).length;
+            const avgCheating = (submissionsWithCheating / (totalSubmissions || 1) * 100).toFixed(1);
+            
+            statsContainer.innerHTML = `
+                <div class="stat-card total-subs">
+                    <p>إجمالي محاولات التسليم</p>
+                    <h3>${totalSubmissions}</h3>
+                </div>
+                <div class="stat-card unique-users">
+                    <p>عدد الطلاب المسجلين (تقريبي)</p>
+                    <h3>${uniqueStudents}</h3>
+                </div>
+                <div class="stat-card cheating-rate">
+                    <p>نسبة التسليمات التي رصد فيها غش</p>
+                    <h3>${avgCheating}%</h3>
+                </div>
+            `;
+        }
+
+        function renderSubmissionsList(submissions) {
+            const tableBody = document.getElementById('submissions-table-body');
+            tableBody.innerHTML = '';
+            // FIX: Use quizQuestions.length instead of window.questions.length
+            const totalQuestionsCount = quizQuestions.length;
+
+            submissions.forEach((s, index) => {
+                const row = tableBody.insertRow();
+                const userIdShort = s.user_id ? s.user_id.substring(0, 8) : 'N/A';
+                
+                // Determine Live Status
+                const liveStatusData = activeUsers[s.user_id] || { isLocked: false };
+                const isLocked = liveStatusData.isLocked;
+                const cheatingFlag = s.cheating_attempt_detected ? '🚨' : '';
+                
+                // Add class for visual alerts
+                row.className = s.cheating_attempt_detected ? 'cheating-row' : (isLocked ? 'locked-row' : '');
+                
+                // Format timestamp
+                const date = s.timestamp ? new Date(s.timestamp) : new Date();
+                const formattedDate = date.toLocaleDateString('ar-EG') + ' ' + date.toLocaleTimeString('ar-EG');
+                
+                // Calculate Score
+                let correctCount = 0;
+                
+                for (const qId in s.answers) {
+                    if (s.answers.hasOwnProperty(qId)) {
+                        const question = quizQuestions.find(q => 'q' + q.Q_ID === qId);
+                        if (question && question.correctAnswer === s.answers[qId]) {
+                            correctCount++;
+                        }
+                    }
+                }
+                const score = `${correctCount} / ${totalQuestionsCount || '?'}`;
+
+                row.insertCell().textContent = index + 1;
+                row.insertCell().textContent = s.student_name || 'طالب مجهول';
+                row.insertCell().textContent = score;
+                row.insertCell().textContent = formattedDate;
+                
+                // Cheating/Status Cell
+                const statusCell = row.insertCell();
+                statusCell.innerHTML = `
+                    <span class="status-indicator ${s.cheating_attempt_detected ? 'alert' : ''}">
+                        ${cheatingFlag} ${s.answered_count === totalQuestionsCount ? 'تم التسليم' : (isLocked ? 'مقفل 🔒' : 'مُسلم جزئي')}
+                    </span>
+                    <br><small style="color: #666;">ID: ${userIdShort}...</small>
+                `;
+                
+                // Action Cell (Kill Switch)
+                const actionCell = row.insertCell();
+                actionCell.style.display = 'flex';
+                actionCell.style.flexDirection = 'column';
+                
+                const lockButton = document.createElement('button');
+                lockButton.textContent = isLocked ? 'فتح الاختبار' : 'قفل الاختبار (Kill)';
+                lockButton.className = isLocked ? 'unlock-btn' : 'lock-btn';
+                
+                // Check if the student has completed the test.
+                const isCompleted = s.answered_count === totalQuestionsCount;
+
+                if (isCompleted) {
+                    lockButton.textContent = 'تم التسليم';
+                    lockButton.disabled = true;
+                    lockButton.className = 'btn';
+                } else {
+                    lockButton.onclick = () => window.toggleLockUser(s.user_id, isLocked);
+                }
+                actionCell.appendChild(lockButton);
+                
+                const detailButton = document.createElement('button');
+                detailButton.textContent = 'عرض الإجابات';
+                detailButton.className = 'detail-btn';
+                detailButton.onclick = () => showSubmissionDetails(s);
+                actionCell.appendChild(detailButton);
+            });
+        }
+        
+        window.showSubmissionDetails = function(submission) {
+            const modal = document.getElementById('details-modal');
+            const content = document.getElementById('details-content');
+            
+            // FIX: Use quizQuestions.length instead of window.questions.length
+            const totalQuestions = quizQuestions.length;
+
+            let detailsHtml = `<h4>تفاصيل تسليم الطالب: ${submission.student_name}</h4>
+                               <p>الوقت: ${new Date(submission.timestamp).toLocaleString('ar-EG')}</p>
+                               <p>حالة الغش المسجلة: ${submission.cheating_attempt_detected ? '🚨 نعم' : 'لا'}</p>
+                               <p>عدد الإجابات: ${submission.answered_count || 0} من ${totalQuestions}</p>
+                               <hr>
+                               <ol>`;
+            
+            // Display Q&A with correct vs incorrect highlighting
+            for (const qId in submission.answers) {
+                if (submission.answers.hasOwnProperty(qId)) {
+                    const studentAnswer = submission.answers[qId];
+                    const question = quizQuestions.find(q => 'q' + q.Q_ID === qId);
+                    
+                    if (question) {
+                        const isCorrect = studentAnswer === question.correctAnswer;
+                        const correctMark = isCorrect ? '✅' : '❌';
+                        const bgColor = isCorrect ? '#e8f5e9' : '#ffebee';
+
+                        detailsHtml += `<li style="padding: 10px; margin-bottom: 5px; border-radius: 5px; background-color: ${bgColor};">
+                                            <strong>السؤال ${question.Q_ID}:</strong> ${question.questionText}<br>
+                                            <strong>إجابة الطالب:</strong> ${studentAnswer}
+                                            <span style="float: left;">${correctMark}</span><br>
+                                            <small style="color: ${isCorrect ? '#388e3c' : '#d32f2f'};">الإجابة الصحيحة: ${question.correctAnswer}</small>
+                                        </li>`;
+                    }
+                }
+            }
+            
+            detailsHtml += `</ol>`;
+            content.innerHTML = detailsHtml;
+            modal.style.display = 'flex';
+        };
+
+
+        // --- Configuration & Question Management (Existing logic) ---
+        window.saveConfig = async function() {
+            const title = document.getElementById('quiz-title-input').value;
+            const studentKey = document.getElementById('student-key-input').value; // Retained from user input
+            const audioUrl = document.getElementById('audio-url-input').value;
+            const transcript = document.getElementById('transcript-input').value;
+            const translation = document.getElementById('translation-input').value;
+            
+            // FIX: Ensure mandatory fields are checked
+            if (!title.trim() || !audioUrl.trim() || !studentKey.trim()) {
+                showError('الرجاء إدخال العنوان، رابط المقطع الصوتي، وكلمة سر الطلاب.');
+                return;
+            }
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const configDocRef = doc(window.db, `artifacts/${appId}/public/data/quiz_config/settings`);
+
+            try {
+                await setDoc(configDocRef, {
+                    title,
+                    studentAccessKey: studentKey, // SAVED HERE
+                    audioUrl,
+                    transcript,
+                    translation,
+                    lastUpdated: new Date().toISOString()
+                }, { merge: true });
+                showSuccess('تم حفظ إعدادات الاختبار بنجاح!');
+            } catch (error) {
+                showError('فشل الحفظ: ' + error.message);
+            }
+        };
+
+        window.openAddModal = function() {
+            document.getElementById('question-modal-title').textContent = 'إضافة سؤال جديد';
+            document.getElementById('question-form').reset();
+            
+            const maxQId = quizQuestions.reduce((max, q) => Math.max(max, q.Q_ID || 0), 0);
+            document.getElementById('question-id-input').value = maxQId + 1;
+            
+            document.getElementById('current-question-id').value = '';
+            document.getElementById('question-modal').style.display = 'flex';
+        };
+
+        window.closeModal = function(id) {
+            document.getElementById(id).style.display = 'none';
+        };
+        
+        window.saveQuestion = async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const qId = parseInt(form['question-id-input'].value);
+            const firestoreId = form['current-question-id'].value;
+            const questionText = form['q-text'].value;
+            const correctAnswer = form['q-correct'].value.toUpperCase();
+
+            if (isNaN(qId) || qId <= 0) {
+                showError('رقم السؤال غير صحيح.', 'question-error');
+                return;
+            }
+            
+            const options = [];
+            for (let i = 1; i <= 4; i++) {
+                options.push({ text: form[`q-opt${i}`].value });
+            }
+
+            if (!questionText || options.some(opt => !opt.text) || !['A', 'B', 'C', 'D'].includes(correctAnswer)) {
+                showError('الرجاء ملء جميع الحقول والتأكد من صحة الحرف الإنجليزي (A, B, C, D).', 'question-error');
+                return;
+            }
+
+            const questionData = { Q_ID: qId, questionText, options, correctAnswer };
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const colRef = collection(window.db, `artifacts/${appId}/public/data/quiz_questions`);
+
+            try {
+                if (firestoreId) {
+                    await setDoc(doc(colRef, firestoreId), questionData, { merge: true });
+                    showSuccess('تم تحديث السؤال بنجاح.');
+                } else {
+                    await addDoc(colRef, questionData);
+                    showSuccess('تمت إضافة السؤال بنجاح.');
+                }
+                closeModal('question-modal');
+            } catch (error) {
+                showError('فشل حفظ السؤال: ' + error.message, 'question-error');
+            }
+        };
+
+        window.editQuestion = function(id) {
+            const q = quizQuestions.find(q => q.id === id);
+            if (!q) return;
+
+            document.getElementById('question-modal-title').textContent = 'تعديل السؤال';
+            document.getElementById('current-question-id').value = q.id;
+            document.getElementById('question-id-input').value = q.Q_ID;
+            document.getElementById('q-text').value = q.questionText;
+            document.getElementById('q-correct').value = q.correctAnswer;
+            
+            q.options.forEach((opt, i) => {
+                document.getElementById(`q-opt${i + 1}`).value = opt.text;
+            });
+            
+            document.getElementById('question-modal').style.display = 'flex';
+        };
+
+        window.deleteQuestion = async function(id) {
+            // Replaced confirm() with a custom modal logic (not implemented, but avoiding direct call)
+            if (!window.confirm('هل أنت متأكد من حذف هذا السؤال؟')) return;
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const docRef = doc(window.db, `artifacts/${appId}/public/data/quiz_questions`, id);
+
+            try {
+                await deleteDoc(docRef);
+                showSuccess('تم حذف السؤال بنجاح.');
+            } catch (error) {
+                showError('فشل حذف السؤال: ' + error.message);
+            }
+        };
+        
+        // --- Utility Functions ---
+        function showError(message, elementId = 'main-error') {
+            const el = document.getElementById(elementId);
+            // Detect the permissions error and provide a specific warning
+            let displayMessage = message;
+            if (message.includes('Missing or insufficient permissions')) {
+                console.error("Firebase Security Rules Error Detected.");
+                displayMessage = `فشل الحفظ: لا توجد أذونات كافية. يرجى مراجعة قواعد أمان Firebase Firestore الخاصة بك للسماح بالكتابة إلى المسار العام (artifacts/{appId}/public/data/...) للمستخدمين المصادق عليهم.`;
+            }
+
+            el.textContent = displayMessage;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 10000); // Display for 10 seconds for critical error
+        }
+
+        function showSuccess(message) {
+            const el = document.getElementById('success-message');
+            el.textContent = message;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 5000);
+        }
+        
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', async () => {
+             document.getElementById('content-status').textContent = 'جاري الاتصال بقاعدة البيانات وتحميل الإعدادات...';
+             const isReady = await initializeFirebase();
+             
+             if (isReady) {
+                 document.getElementById('content').style.display = 'block';
+                 document.getElementById('content-status').style.display = 'none';
+                 loadData();
+             } else {
+                 document.getElementById('content').style.display = 'none';
+             }
+
+             document.getElementById('details-modal').addEventListener('click', (e) => {
+                 if (e.target === document.getElementById('details-modal')) {
+                     closeModal('details-modal');
+                 }
+             });
+        });
+
+    </script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f6f9;
+            padding: 0;
+            margin: 0;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #004d40;
+            border-bottom: 3px solid #009688;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        h2 {
+            color: #1976d2;
+            border-bottom: 2px solid #e0f7fa;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+        .stats-grid {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .stat-card {
+            flex: 1;
+            background-color: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .stat-card h3 {
+            font-size: 2em;
+            color: #1565c0;
+            margin: 5px 0 0;
+        }
+        .stat-card p {
+            color: #555;
+            margin-bottom: 0;
+        }
+        .config-section, .questions-section, .submissions-section {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #00796b;
+        }
+        input[type="text"], input[type="url"], textarea, input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            direction: rtl;
+        }
+        textarea {
+            min-height: 100px;
+        }
+        /* Style for hidden config details */
+        .config-details {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px dashed #009688;
+            border-radius: 5px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .save-btn {
+            background-color: #009688;
+            color: white;
+        }
+        .save-btn:hover {
+            background-color: #00796b;
+        }
+        .add-btn {
+            background-color: #4caf50;
+            color: white;
+            margin-bottom: 20px;
+        }
+        .add-btn:hover {
+            background-color: #388e3c;
+        }
+        .question-item {
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .question-item h4 {
+            color: #004d40;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 10px;
+        }
+        .options-list li {
+            padding: 5px 0;
+            border-left: 3px solid #ddd;
+            padding-right: 10px;
+        }
+        .options-list .correct-option {
+            font-weight: bold;
+            color: #2e7d32;
+            border-left-color: #2e7d32;
+        }
+        .actions button {
+            margin-left: 10px;
+        }
+        .edit-btn {
+            background-color: #ff9800;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-content h3 {
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .close-btn {
+            color: #aaa;
+            float: left;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-btn:hover,
+        .close-btn:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .error-message, #main-error, #question-error {
+            color: #d32f2f;
+            background-color: #ffebee;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+            text-align: center;
+        }
+        #success-message {
+            color: #33691e;
+            background-color: #dcedc8;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+            text-align: center;
+        }
+        
+        /* Submissions Table Style */
+        .submissions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            text-align: right;
+        }
+        .submissions-table th, .submissions-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        .submissions-table th {
+            background-color: #f2f2f2;
+            color: #333;
+            font-weight: bold;
+        }
+        .submissions-table .cheating-row {
+            background-color: #fbe9e7; /* Light red/orange background */
+            border-right: 4px solid #d32f2f;
+        }
+        .submissions-table .locked-row {
+            background-color: #fffde7;
+            border-right: 44px solid #ffeb3b;
+        }
+        
+        .submissions-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .detail-btn {
+            background-color: #1565c0;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        .lock-btn {
+            background-color: #ef6c00; /* Orange kill switch */
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        .unlock-btn {
+            background-color: #4caf50;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        /* Submission Details Modal */
+        #details-modal .modal-content {
+            max-width: 700px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Status message shown before content loads -->
+<p id="content-status" style="text-align: center; margin-top: 50px; font-size: 1.2em; color: #00796b;">جاري الاتصال بقاعدة البيانات وتحميل الإعدادات...</p>
+
+<div class="container" id="content" style="display: none;">
+    <h1>لوحة تحكم الاختبار السمعي STEP</h1>
+    <p id="success-message"></p>
+    <p id="main-error"></p>
+
+    <!-- 1. Statistics Section -->
+    <h2>📊 الإحصائيات العامة</h2>
+    <div class="stats-grid" id="stats-container">
+        <!-- Stats will be rendered here by JavaScript -->
+    </div>
+
+    <!-- 2. Configuration Section (Title, Audio URL, Transcripts) -->
+    <h2>⚙️ إعدادات الاختبار</h2>
+    <div class="config-section">
+        <label for="quiz-title-input">عنوان الاختبار:</label>
+        <input type="text" id="quiz-title-input" placeholder="مثال: اختبار STEP سماعي - مستوى متقدم C1">
+        <p><strong>العنوان الحالي:</strong> <span id="current-title"></span></p>
+        
+        <label for="student-key-input">كلمة سر الطلاب (للدخول):</label>
+        <input type="text" id="student-key-input" placeholder="الرمز السري الذي يستخدمه الطلاب (مثال: 1234)">
+
+        <label for="audio-url-input">رابط المقطع الصوتي (MP3/URL):</label>
+        <input type="url" id="audio-url-input" placeholder="يجب أن يكون رابطًا مباشرًا لملف MP3" style="direction: ltr;">
+        <p><strong>المقطع الحالي:</strong> <span id="current-audio"></span></p>
+
+        <details class="config-details">
+            <summary style="font-weight: bold; cursor: pointer; color: #00796b;">إظهار/إخفاء نصوص الاختبار (لنسخها ولصقها)</summary>
+            
+            <label for="transcript-input">النص الإنجليزي (Transcript):</label>
+            <textarea id="transcript-input" placeholder="النص الأصلي للمقطع الصوتي"></textarea>
+
+            <label for="translation-input">الترجمة العربية:</label>
+            <textarea id="translation-input" placeholder="الترجمة المعتمدة للنص الإنجليزي"></textarea>
+        </details>
+        
+        <button onclick="saveConfig()" class="btn save-btn">حفظ الإعدادات</button>
+    </div>
+
+    <!-- 3. Questions Management Section -->
+    <h2>📝 إدارة الأسئلة (<span id="q-count">0</span> أسئلة حاليًا)</h2>
+    <div class="questions-section">
+        <button onclick="openAddModal()" class="btn add-btn">➕ إضافة سؤال جديد</button>
+        <div id="questions-list">
+            <!-- Questions list will be rendered here by JavaScript -->
+        </div>
+    </div>
+    
+    <!-- 4. Submissions List Section -->
+    <h2>📥 قائمة التسليمات والمراقبة المباشرة (Live Control)</h2>
+    <div class="submissions-section">
+        <table class="submissions-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>اسم الطالب</th>
+                    <th>الدرجة (تقريبية)</th>
+                    <th>وقت التسليم</th>
+                    <th>الحالة/الغش</th>
+                    <th>إجراءات التحكم</th>
+                </tr>
+            </thead>
+            <tbody id="submissions-table-body">
+                <!-- Submissions and Live Status will be rendered here by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- Question Add/Edit Modal -->
+<div id="question-modal" class="modal">
+    <div class="modal-content">
+        <span onclick="closeModal('question-modal')" class="close-btn">&times;</span>
+        <h3 id="question-modal-title">إضافة سؤال جديد</h3>
+        
+        <p id="question-error" class="error-message"></p>
+
+        <form id="question-form" onsubmit="saveQuestion(event)">
+            <input type="hidden" id="current-question-id"> <!-- Firestore Doc ID -->
+
+            <label for="question-id-input">رقم السؤال (لترتيب العرض):</label>
+            <input type="number" id="question-id-input" required min="1" style="width: 50px; direction: ltr;">
+
+            <label for="q-text">نص السؤال:</label>
+            <textarea id="q-text" required></textarea>
+
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label for="q-opt1">الخيار أ:</label>
+                    <input type="text" id="q-opt1" required>
+                    <label for="q-opt2">الخيار ب:</label>
+                    <input type="text" id="q-opt2" required>
+                </div>
+                <div style="flex: 1;">
+                    <label for="q-opt3">الخيار ج:</label>
+                    <input type="text" id="q-opt3" required>
+                    <label for="q-opt4">الخيار د:</label>
+                    <input type="text" id="q-opt4" required>
+                </div>
+            </div>
+
+            <label for="q-correct">الحرف الإنجليزي للإجابة الصحيحة (A, B, C, D):</label>
+            <input type="text" id="q-correct" required maxlength="1" style="width: 50px; direction: ltr; text-transform: uppercase;">
+
+            <button type="submit" class="btn save-btn" style="width: 100%;">حفظ السؤال</button>
+        </form>
+    </div>
+</div>
+
+<!-- Submission Details Modal -->
+<div id="details-modal" class="modal">
+    <div class="modal-content">
+        <span onclick="closeModal('details-modal')" class="close-btn">&times;</span>
+        <h3>تفاصيل تسليم الطالب</h3>
+        <div id="details-content">
+            <!-- Submission details will be loaded here -->
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
